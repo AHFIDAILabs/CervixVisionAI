@@ -1,8 +1,8 @@
 import { authRequest } from "../utils/axiosHelper";
 import { User } from "../types/userType";
-const baseURL = process.env.EXPO_PUBLIC_SERVER_URL || "http://localhost:5000";
+import { AnalysisResult } from "../types/common";
 
-// 👤 Get Profile
+const baseURL = process.env.EXPO_PUBLIC_SERVER_URL || "http://localhost:5000";
 
 const getProfile = async () => {
   return authRequest<{ user: User }>({
@@ -11,7 +11,6 @@ const getProfile = async () => {
   });
 };
 
-// ✏️ Edit Profile
 const editProfile = async (data: FormData) => {
   return authRequest<{
     user: User;
@@ -19,23 +18,21 @@ const editProfile = async (data: FormData) => {
     refreshToken?: string;
   }>({
     method: "PUT",
-    url: "/api/v1/users/editProfile",
+    url: `${baseURL}/api/v1/users/editProfile`,
     data,
     headers: { "Content-Type": "multipart/form-data" },
   });
 };
 
-// 🔬 Get my analyses
 const getMyAnalyses = async () => {
-  return authRequest<{ analyses: any[] }>({
+  return authRequest<{ analyses: AnalysisResult[] }>({
     method: "GET",
     url: `${baseURL}/api/v1/analyses/my`,
   });
 };
 
-// 📤 Upload scan
 const uploadScan = async (data: FormData) => {
-  return authRequest<{ analysis: any; message: string }>({
+  return authRequest<{ analysis: AnalysisResult; message: string }>({
     method: "POST",
     url: `${baseURL}/api/v1/analyses/upload`,
     data,
@@ -43,9 +40,4 @@ const uploadScan = async (data: FormData) => {
   });
 };
 
-export {
-    getProfile,
-    editProfile,
-    getMyAnalyses,
-    uploadScan,
-}
+export { getProfile, editProfile, getMyAnalyses, uploadScan };

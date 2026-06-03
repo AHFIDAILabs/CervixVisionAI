@@ -17,6 +17,7 @@ const authRouter = require("./Routers/authRouter");
 const userRouter = require("./Routers/userRouter");
 const analysisRouter = require("./Routers/analysisRouter");
 const cronRouter = require("./Routers/cron");
+const logger = require("./Middlewares/logger");
 
 // Init app
 const app = express();
@@ -25,7 +26,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*", // ⚠️ Change this to your Expo frontend URL in prod
+    origin: process.env.FRONTEND_URL || "http://localhost:8081",
     methods: ["GET", "POST", "PUT", "DELETE"],
   },
 });
@@ -40,8 +41,12 @@ app.set("Analysis", Analysis);
 io.userSocketMap = new Map();
 
 // Middlewares
-app.use(cors());
+app.use(cors({ origin: process.env.FRONTEND_URL || "http://localhost:8081" }));
 app.use(express.json());
+app.use((req, _res, next) => {
+  logger.info({ method: req.method, url: req.url, ip: req.ip });
+  next();
+});
 app.use(express.urlencoded({ extended: true }));
 app.use(
   fileUpload({

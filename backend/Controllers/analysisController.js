@@ -1,5 +1,6 @@
 const Analysis = require("../Models/analysis");
 const { uploadToCloudinary } = require("../Middlewares/cloudinary");
+const { analyzeImage } = require("../Services/mlService");
 
 const VALID_TYPES = ["blood_test", "urine_test", "xray", "mri", "ct_scan", "general", "other"];
 
@@ -29,30 +30,74 @@ const uploadScan = async (req, res) => {
       return res.status(400).json({ message: "Only image files are allowed." });
     }
 
-    const result = await uploadToCloudinary(file.data, "medical-scans");
+    // 1. Upload image to Cloudinary for permanent storage
+    const cloudinaryResult = await uploadToCloudinary(file.data, "medical-scans");
 
+    // 2. Create Analysis record immediately as "in_progress"
     const analysis = new Analysis({
       patient: req.user._id,
       requestedBy: req.user._id,
       type: VALID_TYPES.includes(type) ? type : "other",
-      status: "pending",
+      status: "in_progress",
       results: {
-        attachments: [{ url: result.secure_url, type: "image" }],
+        attachments: [{ url: cloudinaryResult.secure_url, type: "image" }],
       },
     });
-
     await analysis.save();
 
+    // Notify frontend that analysis has started
     const io = req.app.get("io");
     if (io) {
       io.to(req.user._id.toString()).emit("analysisUpdate", {
         analysisId: analysis._id,
-        status: "pending",
+        status: "in_progress",
       });
     }
 
-    console.log(`[ANALYSIS:201] Scan uploaded for user: ${req.user.email}`);
-    res.status(201).json({ analysis, message: "Scan uploaded successfully." });
+    // 3. Send image buffer to ai_engine for ensemble inference
+    let mlResult = null;
+    try {
+      mlResult = await analyzeImage(file.data, file.mimetype, file.name || "scan.jpg");
+    } catch (mlError) {
+      console.error("[ANALYSIS] ML service call failed:", mlError.message);
+    }
+
+    // 4. Store ML results and mark completed (or failed if ML errored)
+    if (mlResult && !mlResult.error) {
+      analysis.status = "completed";
+      analysis.results.summary = mlResult.clinical_report;
+      analysis.ml_results = {
+        prediction:        mlResult.prediction,
+        confidence:        mlResult.confidence,
+        risk_score:        mlResult.risk_score,
+        lesion_class:      mlResult.lesion_class,
+        uncertainty_score: mlResult.uncertainty_score,
+        uncertainty_level: mlResult.uncertainty_level,
+        risk_level:        mlResult.risk_level,
+        recommendation:    mlResult.recommendation,
+        clinical_report:   mlResult.clinical_report,
+        xai_output:        mlResult.xai_output,
+        analysed_at:       new Date(),
+      };
+    } else {
+      analysis.status = "pending";
+    }
+
+    await analysis.save();
+
+    // 5. Emit result to patient via socket
+    if (io) {
+      io.to(req.user._id.toString()).emit("analysisUpdate", {
+        analysisId:  analysis._id,
+        status:      analysis.status,
+        prediction:  analysis.ml_results?.prediction ?? null,
+        risk_score:  analysis.ml_results?.risk_score ?? null,
+        risk_level:  analysis.ml_results?.risk_level ?? null,
+      });
+    }
+
+    console.log(`[ANALYSIS:201] Scan processed for ${req.user.email} — ${analysis.status}`);
+    res.status(201).json({ analysis, message: "Scan uploaded and analysed successfully." });
   } catch (error) {
     console.error("[ANALYSIS] Upload error:", error.message);
     res.status(500).json({ message: "Server error during scan upload." });
