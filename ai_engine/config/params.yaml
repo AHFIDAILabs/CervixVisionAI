@@ -1,0 +1,28 @@
+# Hyperparameters and tunable parameters for the CervixVisionAI ensemble pipeline.
+
+# --- Ensemble Architecture ---
+PRIMARY_MODEL_NAME: "swin_base_patch4_window7_224"   # Swin Transformer (primary)
+SECONDARY_MODEL_NAME: "efficientnet_b3"              # EfficientNet-B3 (secondary)
+NUM_CLASSES: 2
+PRETRAINED: true
+
+# Ensemble fusion
+ENSEMBLE_WEIGHTS: [0.6, 0.4]    # [primary_weight, secondary_weight]
+FUSION_METHOD: "weighted_average"
+ONNX_EXPORT: true
+
+# --- Image Preprocessing ---
+IMAGE_SIZE: [224, 224, 3]        # (height, width, channels)
+
+# --- Semi-Supervised Training ---
+EPOCHS: 25
+BATCH_SIZE: 16
+LEARNING_RATE: 0.001
+CONSISTENCY_WEIGHT: 1.0
+PSEUDO_LABEL_THRESHOLD: 0.8
+AUGMENTATION: true
+
+# --- High-Sensitivity Fine-Tuning ---
+HS_EPOCHS: 10
+HS_LEARNING_RATE: 0.0001
+INFERENCE_THRESHOLD: 0.3        # Lower threshold maximises sensitivity (fewer false negatives)

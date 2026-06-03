@@ -1,0 +1,18 @@
+# Ensemble model configuration for CervixVisionAI.
+# Controls model paths, ONNX export paths, and fusion weights.
+
+ensemble:
+  fusion_method: "weighted_average"   # Options: weighted_average | learned_fusion
+  onnx_export: true
+
+  primary_model:
+    name: "swin_base_patch4_window7_224"
+    weight: 0.6
+    model_path: "artifacts/training/swin_model.pth"
+    onnx_path: "artifacts/onnx/swin_model.onnx"
+
+  secondary_model:
+    name: "efficientnet_b3"
+    weight: 0.4
+    model_path: "artifacts/training/efficientnet_model.pth"
+    onnx_path: "artifacts/onnx/efficientnet_model.onnx"

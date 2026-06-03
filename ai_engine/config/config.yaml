@@ -1,0 +1,32 @@
+# Pipeline directory structure and file paths for CervixVisionAI.
+
+artifacts_root: artifacts
+
+data_ingestion:
+  root_dir: artifacts/data_ingestion
+  hf_repo_id: "AHFIDAILabs/via-cervix"
+  hf_filename: "via_cervix.zip"
+  local_archive_file: artifacts/data_ingestion/via_cervix.zip
+  unzip_dir: artifacts/data_ingestion/unzipped
+  final_data_dir: artifacts/data/final
+
+build_models:
+  root_dir: artifacts/build_models
+  primary_model_path: artifacts/build_models/swin_base.pth
+  secondary_model_path: artifacts/build_models/efficientnet_b3.pth
+
+training:
+  root_dir: artifacts/training
+  primary_trained_model_path: artifacts/training/swin_model.pth
+  secondary_trained_model_path: artifacts/training/efficientnet_model.pth
+  training_data: artifacts/data
+
+onnx:
+  root_dir: artifacts/onnx
+  primary_onnx_path: artifacts/onnx/swin_model.onnx
+  secondary_onnx_path: artifacts/onnx/efficientnet_model.onnx
+
+evaluation:
+  root_dir: artifacts/evaluation
+  training_data: artifacts/data/final
+  all_params: params.yaml
