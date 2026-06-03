@@ -210,3 +210,17 @@ __marimo__/
 # Ignore local dataset zip
 data/via_cervix.zip
 notebooks/artifacts/
+
+venv/
+data/
+datasets/
+artifacts/
+notebooks/
+logs/
+uploads/
+*.pth
+*.pt
+*.h5
+*.ckpt
+*.onnx
+*.zip
