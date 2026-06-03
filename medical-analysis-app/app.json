@@ -3,28 +3,48 @@
     "name": "medical-analysis-app",
     "slug": "medical-analysis-app",
     "version": "1.0.0",
+    "sdkVersion": "54.0.0",
+    "scheme": "medical-analysis-app",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/Logo.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/Logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    "updates": {
+      "enabled": true,
+      "url": "https://u.expo.dev/8e62be73-e786-49ab-bf67-4288f08c9951",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 3000
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#FFFFFF"
       },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "package": "com.zionnaire.medicalanalysisapp"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "8e62be73-e786-49ab-bf67-4288f08c9951"
+      }
+    },
+    "plugins": [
+      "expo-secure-store"
+    ],
+    "runtimeVersion": {
+      "policy": "appVersion"
     }
   }
 }
