@@ -1,0 +1,36 @@
+# CPU-optimised training configuration for CervixVisionAI.
+#
+# Use this file on a laptop without a GPU:
+#   python train.py --config config/params_cpu.yaml
+#
+# Key differences from params.yaml (GPU default):
+#   - Swin Tiny instead of Swin Base  (28M params vs 88M — ~8x faster)
+#   - Reduced epochs and batch size
+#   - Fusion weights adjusted for Tiny's lower relative accuracy
+
+# --- Ensemble Architecture ---
+PRIMARY_MODEL_NAME: "swin_tiny_patch4_window7_224"   # Swin Tiny — CPU-feasible
+SECONDARY_MODEL_NAME: "efficientnet_b3"               # EfficientNet-B3 — unchanged
+NUM_CLASSES: 2
+PRETRAINED: true
+
+# Adjusted weights: Tiny Swin is closer in power to EfficientNet-B3
+ENSEMBLE_WEIGHTS: [0.55, 0.45]
+FUSION_METHOD: "weighted_average"
+ONNX_EXPORT: true
+
+# --- Image Preprocessing ---
+IMAGE_SIZE: [224, 224, 3]
+
+# --- Semi-Supervised Training (reduced for CPU) ---
+EPOCHS: 10                   # 25 on GPU → 10 on CPU
+BATCH_SIZE: 8                # 16 on GPU → 8 on CPU (less RAM pressure)
+LEARNING_RATE: 0.001
+CONSISTENCY_WEIGHT: 1.0
+PSEUDO_LABEL_THRESHOLD: 0.8
+AUGMENTATION: true
+
+# --- High-Sensitivity Fine-Tuning (reduced for CPU) ---
+HS_EPOCHS: 5                 # 10 on GPU → 5 on CPU
+HS_LEARNING_RATE: 0.0001
+INFERENCE_THRESHOLD: 0.3

@@ -1,5 +1,57 @@
 # CervixVisionAI — Deployment Guide
 
+---
+
+## Edge AI strategy for low-connectivity environments
+
+CervixVisionAI is designed for use in settings with intermittent or no
+internet connectivity (rural clinics, field screenings). The inference
+architecture is **offline-first**:
+
+```
+Primary path  (online):  App → backend → ai_engine → MongoDB → socket → App
+Fallback path (offline): App → on-device ONNX Runtime → local result
+```
+
+Both paths produce the same structured result (prediction, risk score,
+lesion class, recommendation). When connectivity is restored, offline
+results can be synced to the backend.
+
+### What this means for your deployment target
+
+You do **not** need GPU cloud providers (AWS, GCP, Azure GPU instances)
+for this project. The AI inference runs on the Android device. The cloud
+backend is a thin auth + sync layer only.
+
+**Recommended server**: a low-cost always-on VPS:
+
+| Provider | Price | Recommended spec |
+|---|---|---|
+| Hetzner Cloud | €4–6/month | CX22: 2 vCPU, 4 GB RAM |
+| DigitalOcean | $6/month | Basic Droplet: 1 vCPU, 1 GB RAM |
+| Linode/Akamai | $5/month | Shared CPU: 1 GB RAM |
+
+All three run the Docker Compose stack without issue. Choose based on the
+geographic region closest to your users to minimise latency.
+
+**Do not use** free-tier serverless providers (Render free, Railway free)
+for healthcare — they suspend services after inactivity, which is
+unacceptable for a screening tool.
+
+### Activating offline inference
+
+1. Train models and export to ONNX (see `ai_engine/TRAINING.md`)
+2. Copy ONNX files to the frontend:
+   ```bash
+   cp ai_engine/artifacts/onnx/swin_model.onnx        frontend/assets/models/
+   cp ai_engine/artifacts/onnx/efficientnet_model.onnx frontend/assets/models/
+   ```
+3. Use `useOfflineInference` hook in `UserScan.tsx` instead of the direct
+   `uploadScan` call — it automatically selects online or on-device
+   inference based on connectivity.
+
+---
+
 ## Architecture overview
 
 ```
