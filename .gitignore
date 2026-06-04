@@ -1,1 +1,60 @@
+# Claude Code
 .claude/
+
+# Environment files — never commit secrets
+.env
+.env.local
+.env.*.local
+
+# ── Node.js (backend + frontend) ─────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# ── Python (ai_engine) ───────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+*.egg
+dist/
+build/
+venv/
+.venv/
+env/
+.Python
+
+# ── ML artifacts ─────────────────────────────────────────────────────────────
+ai_engine/artifacts/training/*.pth
+ai_engine/artifacts/training/*.h5
+ai_engine/artifacts/onnx/*.onnx
+ai_engine/artifacts/data/
+ai_engine/data/*.zip
+ai_engine/uploads/
+ai_engine/logfile.log
+ai_engine/logs/
+
+# ── Expo / React Native ───────────────────────────────────────────────────────
+frontend/.expo/
+frontend/android/
+frontend/ios/
+frontend/.expo-shared/
+
+# ── Editors and OS ───────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# ── Test / coverage ──────────────────────────────────────────────────────────
+coverage/
+.pytest_cache/
+htmlcov/
+*.cover
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+combined.log
+error.log

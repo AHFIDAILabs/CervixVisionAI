@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "medical-analysis-app",
-    "slug": "medical-analysis-app",
+    "name": "CervixVisionAI",
+    "slug": "cervixvisionai",
     "version": "1.0.0",
     "sdkVersion": "54.0.0",
-    "scheme": "medical-analysis-app",
+    "scheme": "cervixvisionai",
     "orientation": "portrait",
     "icon": "./assets/Logo.png",
     "userInterfaceStyle": "light",
@@ -23,14 +23,21 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ahfidailabs.cervixvisionai"
     },
     "android": {
+      "package": "com.ahfidailabs.cervixvisionai",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
       },
-      "package": "com.zionnaire.medicalanalysisapp"
+      "permissions": [
+        "CAMERA",
+        "READ_MEDIA_IMAGES",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -41,7 +48,14 @@
       }
     },
     "plugins": [
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "CervixVisionAI needs access to your photos to upload scan images.",
+          "cameraPermission": "CervixVisionAI needs access to your camera to capture scan images."
+        }
+      ]
     ],
     "runtimeVersion": {
       "policy": "appVersion"

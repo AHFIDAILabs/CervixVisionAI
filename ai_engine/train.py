@@ -8,6 +8,7 @@ from cervix_visionai.pipeline.stage_01_data_ingestion import DataIngestionTraini
 from cervix_visionai.pipeline.stage_02_build_models import BuildModelsTrainingPipeline
 from cervix_visionai.pipeline.stage_03_train_ensemble import EnsembleTrainingPipeline
 from cervix_visionai.pipeline.stage_04_model_evaluation import EvaluationPipeline
+from cervix_visionai.pipeline.stage_05_onnx_export import OnnxExportPipeline
 from cervix_visionai.utils.logger import logger
 
 logging.basicConfig(
@@ -49,6 +50,15 @@ STAGE_NAME = "Evaluation"
 try:
     logger.info(f">>>>>> stage {STAGE_NAME} started <<<<<<")
     EvaluationPipeline().main()
+    logger.info(f">>>>>> stage {STAGE_NAME} completed <<<<<<\n\nx==========x")
+except Exception as e:
+    logger.exception(e)
+    raise e
+
+STAGE_NAME = "ONNX Export"
+try:
+    logger.info(f">>>>>> stage {STAGE_NAME} started <<<<<<")
+    OnnxExportPipeline().main()
     logger.info(f">>>>>> stage {STAGE_NAME} completed <<<<<<\n\nx==========x")
 except Exception as e:
     logger.exception(e)
