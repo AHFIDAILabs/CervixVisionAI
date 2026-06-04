@@ -18,9 +18,14 @@ const userRouter = require("./Routers/userRouter");
 const analysisRouter = require("./Routers/analysisRouter");
 const cronRouter = require("./Routers/cron");
 const logger = require("./Middlewares/logger");
+const { authLimiter, apiLimiter, forgotPasswordLimiter } = require("./Middlewares/rateLimiter");
 
 // Init app
 const app = express();
+
+// Trust the first proxy (nginx) so express-rate-limit sees real client IPs
+// from X-Forwarded-For rather than the nginx container IP.
+app.set("trust proxy", 1);
 
 // Create HTTP + WebSocket server
 const server = http.createServer(app);
@@ -58,11 +63,12 @@ app.use(
 // Health check — used by Docker and load balancers
 app.get("/health", (_req, res) => res.json({ status: "ok", service: "cervixvisionai-backend" }));
 
-// ROUTES
-app.use("/api/v1/auth", authRouter);
-app.use("/api/v1/users", userRouter);
-app.use("/api/v1/analyses", analysisRouter);
-app.use("/api/v1/cron", cronRouter);
+// ROUTES — rate limiters applied per-route group
+app.use("/api/v1/auth/forgot-password", forgotPasswordLimiter);
+app.use("/api/v1/auth",     authLimiter, authRouter);
+app.use("/api/v1/users",    apiLimiter,  userRouter);
+app.use("/api/v1/analyses", apiLimiter,  analysisRouter);
+app.use("/api/v1/cron",     apiLimiter,  cronRouter);
 
 // SOCKET EVENTS
 io.on("connection", (socket) => {

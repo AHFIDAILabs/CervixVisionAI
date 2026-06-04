@@ -21,21 +21,20 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: cervixvisionai_backend
+    # Port 5000 exposed for direct dev access; nginx also proxies it on port 80
     ports:
       - "5000:5000"
     depends_on:
       mongodb:
         condition: service_healthy
-    # Load the service .env then override inter-service URLs with Docker hostnames
     env_file:
       - ./backend/.env
     environment:
       MONGODB_URI: mongodb://mongodb:27017/cervixvisionai
       ML_SERVICE_URL: http://ai_engine:8000
-    # Source mount for development — changes reflect without rebuilding
     volumes:
       - ./backend:/app
-      - /app/node_modules          # keep container node_modules isolated
+      - /app/node_modules
     command: ["npx", "nodemon", "index.js"]
     restart: unless-stopped
 
@@ -51,10 +50,23 @@ services:
       - ./ai_engine/.env
     environment:
       BACKEND_ALLOWED_ORIGIN: http://backend:5000
-    # Mount artifacts so trained models persist across container restarts
     volumes:
       - ./ai_engine/artifacts:/app/artifacts
       - ./ai_engine/config:/app/config
+    restart: unless-stopped
+
+  # ── Nginx Reverse Proxy ───────────────────────────────────────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: cervixvisionai_nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+      - ai_engine
     restart: unless-stopped
 
 volumes:
