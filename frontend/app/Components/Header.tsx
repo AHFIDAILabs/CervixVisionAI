@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter, usePathname } from 'expo-router';
 import { useAuth } from '../../Context/AuthContext';
 import { useNavigation, CompositeNavigationProp } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
@@ -53,8 +52,6 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 }) => {
   const { user, accessToken } = useAuth();
   const insets = useSafeAreaInsets();
-  const router = useRouter();
-  const pathname = usePathname();
   const [search, setSearch] = useState('');
 
   const navigation = useNavigation<headerNavigateProp>()
@@ -89,16 +86,14 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   const showRecipientProfileLink = type === 'private' && recipientId && user && accessToken;
 
   const handleAvatarPress = () => {
-    if (showRecipientProfileLink && recipientId) {
-      console.log(`[AppHeader] Navigating to UserProfile with userId: ${recipientId}`);
-      router.push({ pathname: '/UserProfile', params: { userId: recipientId } });
+    if (showRecipientProfileLink) {
+      navigation.navigate("UserProfileScreen");
     }
   };
 
   const handleTitleTextPress = () => {
     if (type === 'private' && recipientId && user && accessToken) {
-      console.log(`[AppHeader] Navigating to UserProfile with userId: ${recipientId}`);
-      router.push({ pathname: '/UserProfile', params: { userId: recipientId } });
+      navigation.navigate("UserProfileScreen");
     }
     onTitlePress?.();
   };
