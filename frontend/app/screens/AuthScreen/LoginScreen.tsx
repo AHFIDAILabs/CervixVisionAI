@@ -24,6 +24,7 @@ type AuthStackParamList = {
   Home: undefined;
   LoginScreen: undefined;
   RegisterScreen: undefined;
+  ResetPasswordScreen: { email: string };
 };
 type AuthNav = StackNavigationProp<AuthStackParamList, "LoginScreen">;
 
@@ -89,14 +90,11 @@ export default function LoginScreen() {
       await axiosInstance.post(`${baseURL}/api/v1/auth/forgot-password`, {
         email: forgotEmail.trim().toLowerCase(),
       });
+      const emailSent = forgotEmail.trim().toLowerCase();
       setForgotVisible(false);
       setForgotEmail("");
-      Toast.show({
-        type: "success",
-        text1: "Check your inbox",
-        text2: "If an account exists for that email, a reset link has been sent.",
-        visibilityTime: 5000,
-      });
+      // Navigate to the reset screen so the user can enter the token they received
+      navigation.navigate("ResetPasswordScreen", { email: emailSent });
     } catch {
       Toast.show({ type: "error", text1: "Something went wrong. Please try again." });
     } finally {
