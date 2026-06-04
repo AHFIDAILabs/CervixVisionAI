@@ -24,6 +24,13 @@ const editProfile = async (data: FormData) => {
   });
 };
 
+const getAnalysisById = async (id: string) => {
+  return authRequest<{ analysis: AnalysisResult }>({
+    method: "GET",
+    url: `${baseURL}/api/v1/analyses/${id}`,
+  });
+};
+
 const getMyAnalyses = async () => {
   return authRequest<{ analyses: AnalysisResult[] }>({
     method: "GET",
@@ -40,4 +47,4 @@ const uploadScan = async (data: FormData) => {
   });
 };
 
-export { getProfile, editProfile, getMyAnalyses, uploadScan };
+export { getProfile, editProfile, getAnalysisById, getMyAnalyses, uploadScan };
