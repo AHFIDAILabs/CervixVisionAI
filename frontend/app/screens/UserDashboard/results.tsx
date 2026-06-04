@@ -13,12 +13,14 @@ import DashboardLayout from "./DashboardLayout";
 import BottomNavigationBar from "../../Components/BottomBar";
 import { getMyAnalyses } from "../../../Services/userService";
 import { AnalysisResult } from "../../../types/common";
+import { useSocket } from "../../../Context/SocketContext";
 
 export default function ResultsScreen() {
   const [loading, setLoading] = useState(true);
   const [results, setResults] = useState<AnalysisResult[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { lastAnalysisUpdate } = useSocket();
 
   const fetchResults = async () => {
     try {
@@ -33,6 +35,13 @@ export default function ResultsScreen() {
   useEffect(() => {
     fetchResults().finally(() => setLoading(false));
   }, []);
+
+  // Silently refresh the list whenever a real-time update arrives
+  useEffect(() => {
+    if (lastAnalysisUpdate) {
+      fetchResults();
+    }
+  }, [lastAnalysisUpdate]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
