@@ -104,6 +104,15 @@ export default function RegisterScreen() {
       return;
     }
 
+    if (form.password !== form.cPassword) {
+      Toast.show({
+        type: "error",
+        text1: "Passwords Do Not Match",
+        text2: "Please make sure both passwords are the same.",
+      });
+      return;
+    }
+
     if (!form.role) {
       Toast.show({
         type: "info",

@@ -1,19 +1,16 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const { refreshTokensFunction } = require('../Controllers/refreshToken');
-const app = express();
+const RefreshToken = require("../Models/refreshToken");
 
-// Define a route to trigger the cron job manually
-
-app.get('/cron/refresh-tokens', async (req, res) => {
+// Manually trigger expired-token cleanup (called by an external cron scheduler)
+router.get("/refresh-tokens", async (req, res) => {
   try {
-    // call the function you want the cron to run
-    await refreshTokensFunction();
-    res.status(200).send('Cron job ran successfully');
+    const result = await RefreshToken.deleteMany({ expiresAt: { $lt: new Date() } });
+    res.status(200).json({ message: "Expired tokens cleaned up.", deleted: result.deletedCount });
   } catch (err) {
-    console.error(err);
-    res.status(500).send('Error running cron job');
+    console.error("[CRON] Token cleanup failed:", err);
+    res.status(500).json({ message: "Error running token cleanup." });
   }
 });
 
-module.exports = app;
+module.exports = router;

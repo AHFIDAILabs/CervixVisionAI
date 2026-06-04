@@ -55,15 +55,8 @@ const registerUser = async (req, res) => {
       });
     }
 
-    if (role === "patient" && (!gender || !dateOfBirth)) {
-      // 🟡 LOG VALIDATION FAILURE
-      console.warn(
-        `[AUTH:400] Registration failed: Patient role requires gender and dateOfBirth for email: ${email}`
-      );
-      return res.status(400).json({
-        message: "Patients must provide gender and date of birth.",
-      });
-    } // ✅ Check if email exists
+    // Patient gender and dateOfBirth are optional — frontend marks them as such.
+    // ✅ Check if email exists
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -150,7 +143,6 @@ const loginUser = async (req, res) => {
     
     const tokens = await generateTokens(user); // Await the async function and store the result
     const { accessToken, refreshToken } = tokens; // Destructure after awaiting
-    console.log("[AUTH] Generated Tokens - accessToken:", accessToken, "refreshToken:", refreshToken);
     res.status(200).json({
       message: "Login successful.",
       user: {

@@ -31,7 +31,7 @@ const uploadScan = async (req, res) => {
     }
 
     // 1. Upload image to Cloudinary for permanent storage
-    const cloudinaryResult = await uploadToCloudinary(file.data, "medical-scans");
+    const cloudinaryResult = await uploadToCloudinary(file.data, "medical-scans", file.mimetype);
 
     // 2. Create Analysis record immediately as "in_progress"
     const analysis = new Analysis({

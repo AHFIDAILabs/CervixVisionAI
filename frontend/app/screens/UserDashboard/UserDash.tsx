@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useAuth } from "../../../Context/AuthContext";
@@ -7,14 +7,35 @@ import { StackNavigationProp } from "@react-navigation/stack";
 import DashboardLayout from "./DashboardLayout";
 import BottomNavigationBar from "../../Components/BottomBar";
 import { AppStackParamList } from "../../../types/AppStack";
-
-
+import { getMyAnalyses } from "../../../Services/userService";
 
 type DashboardNav = StackNavigationProp<AppStackParamList, "DashboardScreen">;
 
 export default function DashboardScreen() {
   const { user, logout } = useAuth();
   const navigation = useNavigation<DashboardNav>();
+  const [pendingCount, setPendingCount] = useState(0);
+  const [lastResult, setLastResult] = useState<string>("None");
+
+  useEffect(() => {
+    getMyAnalyses()
+      .then((res) => {
+        const analyses = res.analyses ?? [];
+        const pending = analyses.filter(
+          (a) => a.status === "pending" || a.status === "in_progress"
+        ).length;
+        setPendingCount(pending);
+        const latest = analyses[0];
+        if (latest) {
+          setLastResult(
+            latest.ml_results?.prediction
+              ? `${latest.ml_results.prediction} — ${latest.ml_results.risk_level}`
+              : latest.status.replace(/_/g, " ")
+          );
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <DashboardLayout>
@@ -24,8 +45,7 @@ export default function DashboardScreen() {
 
         <View style={styles.summaryCard}>
           <Text style={styles.summaryTitle}>Health Summary</Text>
-          <Text style={styles.summaryText}>Last Result: Pending</Text>
-          <Text style={styles.summaryText}>Next Appointment: Oct 10, 2025</Text>
+          <Text style={styles.summaryText}>Last Result: {lastResult}</Text>
         </View>
 
         <Text style={styles.sectionTitle}>Quick Actions</Text>
@@ -65,12 +85,20 @@ export default function DashboardScreen() {
 
         <View style={styles.notificationCard}>
           <Text style={styles.sectionTitle}>Notifications</Text>
-          <Text style={styles.notificationText}>1 new result available</Text>
-          <TouchableOpacity style={styles.viewAllBtn}>
+          <Text style={styles.notificationText}>
+            {pendingCount > 0
+              ? `${pendingCount} result${pendingCount > 1 ? "s" : ""} pending`
+              : "No pending results"}
+          </Text>
+          <TouchableOpacity
+            style={styles.viewAllBtn}
+            onPress={() => navigation.navigate("ResultsScreen")}
+          >
             <Text style={styles.viewAllText}>View All</Text>
           </TouchableOpacity>
         </View>
-               <TouchableOpacity
+
+        <TouchableOpacity
           style={styles.card}
           onPress={() => navigation.navigate("SettingScreen")}
         >
@@ -82,12 +110,9 @@ export default function DashboardScreen() {
           <MaterialIcons name="logout" size={24} color="#fff" />
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
-
- 
       </ScrollView>
-     <BottomNavigationBar active="dashboard" /> 
+      <BottomNavigationBar active="dashboard" />
     </DashboardLayout>
-    
   );
 }
 
