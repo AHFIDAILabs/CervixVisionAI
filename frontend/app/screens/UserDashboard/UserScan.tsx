@@ -6,29 +6,35 @@ import {
   StyleSheet,
   Image,
   ActivityIndicator,
-  Alert,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
+import { useNavigation } from "@react-navigation/native";
+import { StackNavigationProp } from "@react-navigation/stack";
+import Toast from "react-native-toast-message";
 import DashboardLayout from "./DashboardLayout";
 import BottomNavigationBar from "../../Components/BottomBar";
 import { uploadScan } from "../../../Services/userService";
+import { AppStackParamList } from "../../../types/AppStack";
+
+type ScanNav = StackNavigationProp<AppStackParamList, "ScanScreen">;
 
 const SCAN_TYPES = [
-  { label: "General", value: "general" },
-  { label: "X-Ray", value: "xray" },
-  { label: "MRI", value: "mri" },
-  { label: "CT Scan", value: "ct_scan" },
+  { label: "General",    value: "general"    },
+  { label: "X-Ray",      value: "xray"       },
+  { label: "MRI",        value: "mri"        },
+  { label: "CT Scan",    value: "ct_scan"    },
   { label: "Blood Test", value: "blood_test" },
   { label: "Urine Test", value: "urine_test" },
-  { label: "Other", value: "other" },
+  { label: "Other",      value: "other"      },
 ];
 
 export default function UploadScanScreen() {
-  const [image, setImage] = useState<string | null>(null);
+  const navigation = useNavigation<ScanNav>();
+  const [image, setImage]         = useState<string | null>(null);
   const [imageMime, setImageMime] = useState<string>("image/jpeg");
-  const [scanType, setScanType] = useState("general");
+  const [scanType, setScanType]   = useState("general");
   const [uploading, setUploading] = useState(false);
 
   const pickImage = async (fromCamera: boolean) => {
@@ -36,19 +42,18 @@ export default function UploadScanScreen() {
       const result = fromCamera
         ? await ImagePicker.launchCameraAsync({ mediaTypes: "images", allowsEditing: true, quality: 1 })
         : await ImagePicker.launchImageLibraryAsync({ mediaTypes: "images", allowsEditing: true, quality: 1 });
-
       if (!result.canceled) {
         setImage(result.assets[0].uri);
         setImageMime(result.assets[0].mimeType ?? "image/jpeg");
       }
     } catch {
-      Alert.alert("Error", "Something went wrong while picking the image.");
+      Toast.show({ type: "error", text1: "Could not open image picker." });
     }
   };
 
   const handleUpload = async () => {
     if (!image) {
-      Alert.alert("No file selected", "Please pick a scan to upload.");
+      Toast.show({ type: "info", text1: "Please select a scan image first." });
       return;
     }
 
@@ -56,17 +61,27 @@ export default function UploadScanScreen() {
     try {
       const formData = new FormData();
       formData.append("scan", {
-        uri: image,
+        uri:  image,
         name: `scan_${Date.now()}.jpg`,
         type: imageMime,
       } as any);
       formData.append("type", scanType);
 
       await uploadScan(formData);
-      Alert.alert("Uploaded", "Your scan has been submitted for review.");
+
+      // Clear the selected image and navigate to results immediately.
+      // The AI analysis runs in the background on the server — a socket
+      // notification will arrive when it's complete.
       setImage(null);
+      Toast.show({
+        type: "success",
+        text1: "Scan uploaded",
+        text2: "AI analysis has started. You'll be notified when results are ready.",
+        visibilityTime: 5000,
+      });
+      navigation.navigate("ResultsScreen");
     } catch {
-      Alert.alert("Upload Failed", "Could not upload scan. Please try again.");
+      Toast.show({ type: "error", text1: "Upload failed", text2: "Please try again." });
     } finally {
       setUploading(false);
     }
@@ -77,7 +92,7 @@ export default function UploadScanScreen() {
       <View style={styles.container}>
         <Text style={styles.title}>Upload Your Scan</Text>
         <Text style={styles.subtitle}>
-          Choose a file from your gallery or take a photo of your scan.
+          Take a photo or choose from your gallery. AI analysis begins immediately after upload.
         </Text>
 
         <View style={styles.pickerBox}>
@@ -93,11 +108,7 @@ export default function UploadScanScreen() {
           </Picker>
         </View>
 
-        <TouchableOpacity
-          style={styles.uploadBox}
-          activeOpacity={0.8}
-          onPress={() => pickImage(false)}
-        >
+        <TouchableOpacity style={styles.uploadBox} activeOpacity={0.8} onPress={() => pickImage(false)}>
           {image ? (
             <Image source={{ uri: image }} style={styles.previewImage} />
           ) : (
@@ -108,26 +119,36 @@ export default function UploadScanScreen() {
           )}
         </TouchableOpacity>
 
+        {image && (
+          <TouchableOpacity style={styles.clearBtn} onPress={() => setImage(null)}>
+            <Text style={styles.clearText}>✕  Remove image</Text>
+          </TouchableOpacity>
+        )}
+
         <View style={styles.actionsRow}>
           <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: "#2563eb" }]}
             onPress={() => pickImage(true)}
+            disabled={uploading}
           >
             <MaterialIcons name="photo-camera" size={24} color="#fff" />
-            <Text style={styles.btnText}>Use Camera</Text>
+            <Text style={styles.btnText}>Camera</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: "#9333ea" }]}
+            style={[styles.actionBtn, { backgroundColor: "#9333ea" }, !image && styles.btnDisabled]}
             onPress={handleUpload}
-            disabled={uploading}
+            disabled={uploading || !image}
           >
             {uploading ? (
-              <ActivityIndicator color="#fff" />
+              <>
+                <ActivityIndicator color="#fff" style={{ marginRight: 6 }} />
+                <Text style={styles.btnText}>Uploading…</Text>
+              </>
             ) : (
               <>
                 <MaterialIcons name="cloud-upload" size={24} color="#fff" />
-                <Text style={styles.btnText}>Upload</Text>
+                <Text style={styles.btnText}>Analyse</Text>
               </>
             )}
           </TouchableOpacity>
@@ -139,75 +160,30 @@ export default function UploadScanScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: "#f9fafb",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#111827",
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: "#6b7280",
-    marginBottom: 12,
-  },
+  container:   { flex: 1, padding: 20, backgroundColor: "#f9fafb" },
+  title:       { fontSize: 24, fontWeight: "700", color: "#111827", marginBottom: 8 },
+  subtitle:    { fontSize: 14, color: "#6b7280", marginBottom: 12, lineHeight: 20 },
   pickerBox: {
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 12,
-    backgroundColor: "#fff",
-    height: 50,
-    justifyContent: "center",
-    marginBottom: 16,
-    overflow: "hidden",
+    borderWidth: 1, borderColor: "#D1D5DB", borderRadius: 12,
+    backgroundColor: "#fff", height: 50, justifyContent: "center",
+    marginBottom: 16, overflow: "hidden",
   },
-  picker: {
-    color: "#111827",
-    width: "100%",
-    height: "100%",
-  },
+  picker:      { color: "#111827", width: "100%", height: "100%" },
   uploadBox: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    borderWidth: 2,
-    borderStyle: "dashed",
-    borderColor: "#9333ea",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 40,
-    marginBottom: 20,
+    backgroundColor: "#fff", borderRadius: 16, borderWidth: 2,
+    borderStyle: "dashed", borderColor: "#9333ea",
+    justifyContent: "center", alignItems: "center",
+    padding: 40, marginBottom: 12,
   },
-  uploadText: {
-    marginTop: 10,
-    fontSize: 14,
-    color: "#6b7280",
-  },
-  previewImage: {
-    width: "100%",
-    height: 200,
-    borderRadius: 12,
-    resizeMode: "cover",
-  },
-  actionsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
+  uploadText:  { marginTop: 10, fontSize: 14, color: "#6b7280" },
+  previewImage: { width: "100%", height: 200, borderRadius: 12, resizeMode: "cover" },
+  clearBtn:    { alignSelf: "flex-end", marginBottom: 12 },
+  clearText:   { color: "#ef4444", fontSize: 13, fontWeight: "500" },
+  actionsRow:  { flexDirection: "row", justifyContent: "space-between" },
   actionBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    marginHorizontal: 5,
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    flex: 1, paddingVertical: 14, borderRadius: 12, marginHorizontal: 5,
   },
-  btnText: {
-    color: "#fff",
-    fontWeight: "600",
-    marginLeft: 6,
-  },
+  btnDisabled: { opacity: 0.45 },
+  btnText:     { color: "#fff", fontWeight: "600", marginLeft: 6 },
 });
