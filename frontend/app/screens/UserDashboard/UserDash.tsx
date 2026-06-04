@@ -8,16 +8,18 @@ import DashboardLayout from "./DashboardLayout";
 import BottomNavigationBar from "../../Components/BottomBar";
 import { AppStackParamList } from "../../../types/AppStack";
 import { getMyAnalyses } from "../../../Services/userService";
+import { useSocket } from "../../../Context/SocketContext";
 
 type DashboardNav = StackNavigationProp<AppStackParamList, "DashboardScreen">;
 
 export default function DashboardScreen() {
   const { user, logout } = useAuth();
   const navigation = useNavigation<DashboardNav>();
+  const { lastAnalysisUpdate } = useSocket();
   const [pendingCount, setPendingCount] = useState(0);
   const [lastResult, setLastResult] = useState<string>("None");
 
-  useEffect(() => {
+  const refreshSummary = () => {
     getMyAnalyses()
       .then((res) => {
         const analyses = res.analyses ?? [];
@@ -35,7 +37,15 @@ export default function DashboardScreen() {
         }
       })
       .catch(() => {});
-  }, []);
+  };
+
+  // Initial load
+  useEffect(() => { refreshSummary(); }, []);
+
+  // Re-fetch whenever a real-time analysis update arrives
+  useEffect(() => {
+    if (lastAnalysisUpdate) refreshSummary();
+  }, [lastAnalysisUpdate]);
 
   return (
     <DashboardLayout>
