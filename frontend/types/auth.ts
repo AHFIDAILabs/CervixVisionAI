@@ -42,4 +42,5 @@ export type AuthStackParamList = {
   WelcomeScreen: undefined;
   LoginScreen: undefined;
   RegisterScreen: undefined;
+  ResetPasswordScreen: { email: string };
 };
