@@ -1,11 +1,11 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
 import * as SecureStore from "expo-secure-store";
-import { getProfile } from "../Services/userService"; // Updated to use the service
+import { getProfile } from "../Services/userService";
 import { User } from "../types/userType";
 import { AuthResponse } from "../types/auth";
 import { normalizeUser } from "../utils/imageHelper";
+import { setLogoutCallback } from "../utils/axiosHelper";
 
-// --- Context Interface ---
 interface AuthContextProps {
   user: User | null;
   setUser: React.Dispatch<React.SetStateAction<User | null>>;
@@ -24,51 +24,45 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // 🚪 Logout
-  const logout = async () => {
+  const logout = useCallback(async () => {
     setUser(null);
     setAccessToken(null);
     await SecureStore.deleteItemAsync("accessToken");
     await SecureStore.deleteItemAsync("refreshToken");
-  };
+  }, []);
 
-  // ✅ Function to handle state and secure storage updates (called from screens)
-const handleSuccessfulAuth = async (res: AuthResponse) => {
-    console.log("[AUTH] Original User Image:", res.user.userImage); // 👈 Log Original
-    const normalizedUser = normalizeUser(res.user); 
-    console.log("[AUTH] Normalized User Image:", normalizedUser.userImage); // 👈 Log Normalized
-    setUser(normalizedUser);
-  setAccessToken(res.accessToken);
+  const handleSuccessfulAuth = async (res: AuthResponse) => {
+    setUser(normalizeUser(res.user));
+    setAccessToken(res.accessToken);
     await SecureStore.setItemAsync("accessToken", res.accessToken);
     if (res.refreshToken) {
       await SecureStore.setItemAsync("refreshToken", res.refreshToken);
     }
   };
 
-  // 🔄 Refresh profile (Memoized for useEffect dependency)
   const refreshProfile = useCallback(async (tokenOverride?: string) => {
-  const tokenToUse = tokenOverride || accessToken;
-  if (!tokenToUse) return;
-
-  try {
-    const res = await getProfile();
-    console.log("[REFRESH] Original User Image:", res.user.userImage); // 👈 Log Original
-    const normalizedUser = normalizeUser(res.user); 
-    console.log("[REFRESH] Normalized User Image:", normalizedUser.userImage); // 👈 Log Normalized
-    setUser(normalizedUser);
-  } catch (err: any) {
+    const tokenToUse = tokenOverride || accessToken;
+    if (!tokenToUse) return;
+    try {
+      const res = await getProfile();
+      setUser(normalizeUser(res.user));
+    } catch (err: any) {
       console.error("Error refreshing profile:", err);
       if (err.response?.status === 401) {
-      const retryRes = await getProfile();
-      const normalizedUser = normalizeUser(retryRes.user); // <-- NEW on retry
-      setUser(normalizedUser);
-    } else {
-      throw err;
+        const retryRes = await getProfile();
+        setUser(normalizeUser(retryRes.user));
+      } else {
+        throw err;
+      }
     }
-  }
-}, [accessToken]);
+  }, [accessToken]);
 
-  // 🔑 Initial Load from secure storage
+  // Register the logout callback so axiosHelper can trigger it when
+  // a token refresh fails (avoids a circular dependency between the two modules).
+  useEffect(() => {
+    setLogoutCallback(logout);
+  }, [logout]);
+
   useEffect(() => {
     const loadAuth = async () => {
       try {
@@ -77,8 +71,7 @@ const handleSuccessfulAuth = async (res: AuthResponse) => {
           setAccessToken(token);
           try {
             await refreshProfile(token);
-          } catch (profileError) {
-            console.error("Token found but profile refresh failed. Cleaning up.", profileError);
+          } catch {
             await logout();
           }
         }
@@ -89,7 +82,7 @@ const handleSuccessfulAuth = async (res: AuthResponse) => {
       }
     };
     loadAuth();
-  }, [refreshProfile]);
+  }, [refreshProfile, logout]);
 
   return (
     <AuthContext.Provider

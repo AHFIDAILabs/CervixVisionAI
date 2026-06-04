@@ -77,30 +77,28 @@ io.on("connection", (socket) => {
     console.log(`✅ User ${userId} authenticated on socket ${socket.id}`);
   });
 
-  // Notify doctors/patients of new analysis results
+  // Notify doctors/patients of new analysis results — only authenticated sockets
   socket.on("newAnalysisResult", ({ analysisId, patientId, doctorId }) => {
+    if (!socket.userId) return;
     io.to(patientId).emit("analysisUpdate", { analysisId, status: "ready" });
     io.to(doctorId).emit("analysisUpdate", { analysisId, status: "ready" });
-    console.log(`📢 Analysis ${analysisId} update pushed to patient ${patientId} and doctor ${doctorId}`);
   });
 
-  // Notifications (generic)
+  // Notifications (generic) — only authenticated sockets
   socket.on("sendNotification", async ({ recipientId, title, message }) => {
-    const notification = new Notification({
-      recipient: recipientId,
-      title,
-      message,
-    });
-    await notification.save();
-
-    io.to(recipientId).emit("newNotification", {
-      id: notification._id,
-      title,
-      message,
-      createdAt: notification.createdAt,
-    });
-
-    console.log(`🔔 Notification sent to ${recipientId}`);
+    if (!socket.userId) return;
+    try {
+      const notification = new Notification({ recipient: recipientId, title, message });
+      await notification.save();
+      io.to(recipientId).emit("newNotification", {
+        id: notification._id,
+        title,
+        message,
+        createdAt: notification.createdAt,
+      });
+    } catch (err) {
+      console.error("[SOCKET] sendNotification failed:", err.message);
+    }
   });
 
   socket.on("disconnect", () => {

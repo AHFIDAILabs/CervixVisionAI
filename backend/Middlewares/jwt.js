@@ -1,71 +1,40 @@
-// middleware/jwtAuth.js
 const jwt = require("jsonwebtoken");
 const User = require("../Models/user");
 const RefreshToken = require("../Models/refreshToken");
 const bcrypt = require("bcryptjs");
 
 if (!process.env.JWT_SECRET || !process.env.REFRESH_TOKEN_SECRET) {
-  console.warn("JWT_SECRET or REFRESH_TOKEN_SECRET is not set in .env");
+  console.warn("[AUTH] WARNING: JWT_SECRET or REFRESH_TOKEN_SECRET is not set in .env");
 }
 
-/**
- * Create an access token (short lived)
- */
 const signJwt = (user) => {
-  try {
-    console.log("[AUTH] Signing JWT for user:", user._id, "with secret:", !!process.env.JWT_SECRET);
-    const payload = {
-      sub: user._id.toString(),
-      role: user.role,
-      name: `${user.firstName || ""} ${user.lastName || ""}`.trim() || undefined,
-      assignedDoctor: user.assignedDoctor ? user.assignedDoctor.toString() : undefined,
-    };
-    console.log("[AUTH] JWT Payload:", payload);
-    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "15m" });
-    console.log("[AUTH] JWT Signed:", token);
-    return token;
-  } catch (error) {
-    console.error("[AUTH] Error signing JWT:", error);
-    throw error;
-  }
+  const payload = {
+    sub: user._id.toString(),
+    role: user.role,
+    name: `${user.firstName || ""} ${user.lastName || ""}`.trim() || undefined,
+    assignedDoctor: user.assignedDoctor ? user.assignedDoctor.toString() : undefined,
+  };
+  return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "15m" });
 };
 
 const signRefreshToken = async (user) => {
-  try {
-    console.log("[AUTH] Signing Refresh Token for user:", user._id, "with secret:", !!process.env.REFRESH_TOKEN_SECRET);
-    const payload = { sub: user._id.toString(), role: user.role };
-    console.log("[AUTH] Refresh Token Payload:", payload);
-    const token = jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET, { expiresIn: "7d" });
-    console.log("[AUTH] Refresh Token Signed:", token);
-    const salt = await bcrypt.genSalt(10);
-    const hashedToken = await bcrypt.hash(token, salt);
-    return { token, hashedToken };
-  } catch (error) {
-    console.error("[AUTH] Error signing Refresh Token:", error);
-    throw error;
-  }
+  const payload = { sub: user._id.toString(), role: user.role };
+  const token = jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET, { expiresIn: "7d" });
+  const hashedToken = await bcrypt.hash(token, 10);
+  return { token, hashedToken };
 };
 
 const generateTokens = async (user) => {
-  try {
-    console.log("[AUTH] Generating tokens for user:", user);
-    const { token: refreshToken, hashedToken } = await signRefreshToken(user);
-    await RefreshToken.create({
-      token: hashedToken,
-      userId: user._id,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-    });
-    const accessToken = signJwt(user);
-    return { accessToken, refreshToken };
-  } catch (error) {
-    console.error("[AUTH] Error generating tokens:", error);
-    throw error;
-  }
+  const { token: refreshToken, hashedToken } = await signRefreshToken(user);
+  await RefreshToken.create({
+    token: hashedToken,
+    userId: user._id,
+    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+  });
+  const accessToken = signJwt(user);
+  return { accessToken, refreshToken };
 };
 
-/**
- * Verify access token
- */
 const verifyToken = (req, res, next) => {
   try {
     const authHeader = (req.headers.authorization || "").toString();
@@ -87,9 +56,6 @@ const verifyToken = (req, res, next) => {
   }
 };
 
-/**
- * Role-based authorization
- */
 const authorize = (...allowedRoles) => {
   return (req, res, next) => {
     if (!req.auth || !allowedRoles.includes(req.auth.role)) {
@@ -99,31 +65,22 @@ const authorize = (...allowedRoles) => {
   };
 };
 
-/**
- * Verify refresh token
- */
 const verifyRefreshToken = (token) => {
-  try {
-    const decoded = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
-    return decoded;
-  } catch (err) {
-    throw err;
+  return jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
+};
+
+const revokeToken = async (token) => {
+  const decoded = verifyRefreshToken(token);
+  const storedTokens = await RefreshToken.find({ userId: decoded.sub });
+  for (const stored of storedTokens) {
+    const isMatch = await bcrypt.compare(token, stored.token);
+    if (isMatch) {
+      await stored.deleteOne();
+      return;
+    }
   }
 };
 
-/**
- * Revoke a refresh token
- */
-const revokeToken = async (token) => {
-  const decoded = verifyRefreshToken(token);
-  const salt = await bcrypt.genSalt(10);
-  const hashedToken = await bcrypt.hash(token, salt);
-  await RefreshToken.deleteOne({ token: hashedToken, userId: decoded.sub });
-};
-
-/**
- * Hydrate full user details
- */
 const hydrateUser = async (req, res, next) => {
   try {
     const userId = req.auth?.userId;

@@ -99,7 +99,7 @@ const getProfile = async (req, res) => {
           if (user.userImage?.public_id) {
             await deleteFromCloudinary(user.userImage.public_id);
           }
-          const result = await uploadToCloudinary(fileBuffer, "profile-images");
+          const result = await uploadToCloudinary(fileBuffer, "profile-images", file.mimetype);
           user.userImage = { url: result.secure_url, public_id: result.public_id };
         }
       }
@@ -134,7 +134,43 @@ const getProfile = async (req, res) => {
     }
   };
 
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: "Current and new password are required." });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: "New password must be at least 6 characters." });
+    }
+    const user = await User.findById(req.user._id).select("+password");
+    if (!user) return res.status(404).json({ message: "User not found." });
+    const isMatch = await user.matchPassword(currentPassword);
+    if (!isMatch) return res.status(401).json({ message: "Current password is incorrect." });
+    user.password = newPassword;
+    await user.save();
+    res.status(200).json({ message: "Password changed successfully." });
+  } catch (error) {
+    console.error("[USER] changePassword error:", error.message);
+    res.status(500).json({ message: "Server error." });
+  }
+};
+
+const deleteAccount = async (req, res) => {
+  try {
+    const Analysis = require("../Models/analysis");
+    await Analysis.deleteMany({ patient: req.user._id });
+    await User.findByIdAndDelete(req.user._id);
+    res.status(200).json({ message: "Account deleted successfully." });
+  } catch (error) {
+    console.error("[USER] deleteAccount error:", error.message);
+    res.status(500).json({ message: "Server error." });
+  }
+};
+
 module.exports = {
     getProfile,
     editProfile,
+    changePassword,
+    deleteAccount,
 }

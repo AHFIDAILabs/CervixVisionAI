@@ -13,7 +13,7 @@ const refreshTokenSchema = new mongoose.Schema({
   expiresAt: {
     type: Date,
     required: true,
-    index: { expires: "1d" }, // Optional: Auto-remove expired tokens using TTL index
+    index: { expireAfterSeconds: 0 }, // MongoDB TTL: auto-remove at the stored expiresAt date
   },
 }, {
   timestamps: true, // Adds createdAt and updatedAt fields
