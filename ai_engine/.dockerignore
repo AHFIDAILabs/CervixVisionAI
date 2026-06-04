@@ -1,0 +1,22 @@
+venv/
+.venv/
+.env
+.env.*
+.git
+.gitignore
+notebooks/
+logs/
+logfile.log
+uploads/
+# Artifacts are mounted at runtime, not baked into the image
+artifacts/training/*.pth
+artifacts/training/*.h5
+artifacts/onnx/*.onnx
+artifacts/data/
+data/
+# Dev/test files
+tests/
+*.pyc
+__pycache__/
+.pytest_cache/
+readme.md

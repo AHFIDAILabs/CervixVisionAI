@@ -1,0 +1,35 @@
+# Production overrides — use alongside the base compose file:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Key differences from dev:
+#   - No source volume mounts (code is baked into the image)
+#   - Backend runs with `node` not `nodemon`
+#   - ai_engine runs with 2 Uvicorn workers
+#   - MongoDB requires authentication
+#   - All services restart automatically
+
+services:
+
+  mongodb:
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:?MONGO_USER is required}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:?MONGO_PASSWORD is required}
+      MONGO_INITDB_DATABASE: cervixvisionai
+
+  backend:
+    restart: always
+    command: ["node", "index.js"]
+    volumes: []                    # no source mount in production
+    environment:
+      NODE_ENV: production
+      MONGODB_URI: mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017/cervixvisionai?authSource=admin
+      ML_SERVICE_URL: http://ai_engine:8000
+
+  ai_engine:
+    restart: always
+    command: ["uvicorn", "app.api:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+    volumes:
+      # Artifacts mounted read-only in production — models are pre-trained
+      - ./ai_engine/artifacts:/app/artifacts:ro
+      - ./ai_engine/config:/app/config:ro
