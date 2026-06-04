@@ -55,6 +55,9 @@ app.use(
   })
 );
 
+// Health check — used by Docker and load balancers
+app.get("/health", (_req, res) => res.json({ status: "ok", service: "cervixvisionai-backend" }));
+
 // ROUTES
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/users", userRouter);
