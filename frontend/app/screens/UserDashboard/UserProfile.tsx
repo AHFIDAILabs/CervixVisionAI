@@ -72,8 +72,7 @@ export default function UserProfile() {
 
     // Get the current URL from the context user object
     const currentProfileImageUrl = (user?.userImage as string | null) || null;
-console.log("Image URI being sent:", newImageUri);
-    // Only send new image if user picked a new one (i.e., newImageUri is a local URI)
+    // newImageUri is only non-null when the user picked a new LOCAL file in EditProfileModal
     if (newImageUri && newImageUri !== currentProfileImageUrl) {
       const file = {
         uri: newImageUri, // The local file URI from ImagePicker

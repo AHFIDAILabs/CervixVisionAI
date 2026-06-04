@@ -1,6 +1,7 @@
-// controllers/userController.js
 const User = require("../Models/user");
 const { generateTokens } = require("../Middlewares/jwt");
+const crypto = require("crypto");
+const bcrypt = require("bcryptjs");
 
 /**
  * Register a new user
@@ -188,4 +189,78 @@ const loginUser = async (req, res) => {
 
 
 
-module.exports = { registerUser, loginUser};
+/**
+ * Forgot Password — generates a reset token valid for 1 hour.
+ * In production the token would be emailed; here we return 200 regardless
+ * of whether the email exists (prevents user enumeration).
+ */
+const forgotPassword = async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ message: "Email is required." });
+
+  try {
+    const user = await User.findOne({ email }).select("+resetPasswordToken +resetPasswordExpires");
+    // Always respond 200 — never reveal whether email is registered
+    if (!user) {
+      return res.status(200).json({ message: "If an account with that email exists, a reset link has been sent." });
+    }
+
+    // Generate a secure random token and store it hashed
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    user.resetPasswordToken   = await bcrypt.hash(rawToken, 10);
+    user.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    await user.save();
+
+    // TODO: send rawToken via email (e.g. SendGrid) in production.
+    // For development, log it so it can be used directly.
+    if (process.env.NODE_ENV !== "production") {
+      console.log(`[DEV] Password reset token for ${email}: ${rawToken}`);
+    }
+
+    res.status(200).json({ message: "If an account with that email exists, a reset link has been sent." });
+  } catch (error) {
+    console.error("[AUTH] forgotPassword error:", error.message);
+    res.status(500).json({ message: "Server error." });
+  }
+};
+
+/**
+ * Reset Password — validates the token and sets a new password.
+ */
+const resetPassword = async (req, res) => {
+  const { email, token, newPassword } = req.body;
+  if (!email || !token || !newPassword) {
+    return res.status(400).json({ message: "Email, token, and new password are required." });
+  }
+  if (newPassword.length < 6) {
+    return res.status(400).json({ message: "New password must be at least 6 characters." });
+  }
+
+  try {
+    const user = await User.findOne({
+      email,
+      resetPasswordExpires: { $gt: new Date() },
+    }).select("+resetPasswordToken +resetPasswordExpires +password");
+
+    if (!user) {
+      return res.status(400).json({ message: "Reset token is invalid or has expired." });
+    }
+
+    const isValid = await bcrypt.compare(token, user.resetPasswordToken);
+    if (!isValid) {
+      return res.status(400).json({ message: "Reset token is invalid or has expired." });
+    }
+
+    user.password             = newPassword; // pre-save hook will hash it
+    user.resetPasswordToken   = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    res.status(200).json({ message: "Password reset successfully. You can now log in." });
+  } catch (error) {
+    console.error("[AUTH] resetPassword error:", error.message);
+    res.status(500).json({ message: "Server error." });
+  }
+};
+
+module.exports = { registerUser, loginUser, forgotPassword, resetPassword };

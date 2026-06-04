@@ -60,6 +60,10 @@ const userSchema = new mongoose.Schema(
     ],
 
     lastLogin: { type: Date },
+
+    // Password reset — token is stored hashed; raw token is sent to user (via email in prod)
+    resetPasswordToken:   { type: String, select: false },
+    resetPasswordExpires: { type: Date,   select: false },
   },
   { timestamps: true }
 );
