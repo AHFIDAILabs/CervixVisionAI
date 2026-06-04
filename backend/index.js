@@ -9,8 +9,7 @@ const connectDB = require("./configs/database");
 // Models
 const User = require("./Models/user");
 const Notification = require("./Models/notifications");
-const Analysis = require("./Models/analysis"); // custom model for medical reports
-const Message = require("./Models/messages");
+const Analysis = require("./Models/analysis");
 
 // Routes
 const authRouter = require("./Routers/authRouter");
@@ -72,9 +71,8 @@ app.use("/api/v1/cron",     apiLimiter,  cronRouter);
 
 // SOCKET EVENTS
 io.on("connection", (socket) => {
-  console.log(`🔌 User connected: ${socket.id}`);
+  logger.info({ event: "socket_connect", socketId: socket.id });
 
-  // User login -> authenticate socket
   socket.on("authenticate", (userId) => {
     if (!userId) return socket.disconnect();
 
@@ -83,7 +81,7 @@ io.on("connection", (socket) => {
     io.userSocketMap.get(userId).add(socket.id);
 
     socket.join(userId);
-    console.log(`✅ User ${userId} authenticated on socket ${socket.id}`);
+    logger.info({ event: "socket_authenticated", socketId: socket.id });
   });
 
   // Notify doctors/patients of new analysis results — only authenticated sockets
@@ -111,7 +109,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnect", () => {
-    console.log(`❌ User disconnected: ${socket.id}`);
+    logger.info({ event: "socket_disconnect", socketId: socket.id });
     if (socket.userId && io.userSocketMap.has(socket.userId)) {
       io.userSocketMap.get(socket.userId).delete(socket.id);
       if (io.userSocketMap.get(socket.userId).size === 0) {
@@ -125,5 +123,5 @@ io.on("connection", (socket) => {
 connectDB();
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, "0.0.0.0", () =>
-  console.log(`🚀 Medical Analysis API running on http://localhost:${PORT}`)
+  logger.info(`CervixVisionAI backend running on port ${PORT}`)
 );
