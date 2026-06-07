@@ -34,7 +34,7 @@ class BuildModels:
             num_classes=self.config.params_num_classes,
         )
         torch.save(model.state_dict(), save_path)
-        logger.info(f"Saved initial weights → {save_path}")
+        logger.info(f"Saved initial weights -> {save_path}")
         return model
 
     def build_all(self):
