@@ -236,11 +236,29 @@ FRONTEND_URL=https://app.yourdomain.com
 
 ### 4.3 Issue SSL certificate (once per domain)
 
+`default.conf.template` defines both the HTTP→HTTPS redirect server *and* the
+`listen 443 ssl` server block in the same file, and that HTTPS block points at
+`/etc/nginx/ssl/live/${DOMAIN}/{fullchain,privkey}.pem`. nginx checks that
+these cert files exist when it loads its config — so on a brand-new server
+(no certs yet) nginx won't start at all, not even to serve the HTTP-01
+challenge certbot needs. Generate a temporary self-signed placeholder first so
+nginx can boot; certbot will overwrite it with the real certificate at the
+exact same path, and nginx never needs a config change in between.
+
 ```bash
-# Step 1: Start nginx on HTTP only so certbot can verify domain ownership
+# Step 0: Create a temporary self-signed placeholder cert so nginx can start
+# (replace api.yourdomain.com with your real DOMAIN value)
+mkdir -p nginx/ssl/live/api.yourdomain.com
+openssl req -x509 -nodes -newkey rsa:2048 -days 1 \
+  -keyout nginx/ssl/live/api.yourdomain.com/privkey.pem \
+  -out nginx/ssl/live/api.yourdomain.com/fullchain.pem \
+  -subj "/CN=api.yourdomain.com"
+
+# Step 1: Start nginx — it can now load both server blocks and will serve
+# the ACME HTTP-01 challenge so certbot can verify domain ownership
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d nginx
 
-# Step 2: Issue the certificate
+# Step 2: Issue the real certificate (overwrites the placeholder above)
 docker compose -f docker-compose.yml -f docker-compose.prod.yml \
   --profile certbot run --rm certbot certonly --webroot \
   --webroot-path=/var/www/certbot \
@@ -248,7 +266,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml \
   --email admin@yourdomain.com \
   --agree-tos --no-eff-email
 
-# Step 3: Reload nginx to serve HTTPS
+# Step 3: Reload nginx to pick up the real certificate
 docker compose -f docker-compose.yml -f docker-compose.prod.yml restart nginx
 ```
 

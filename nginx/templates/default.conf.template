@@ -1,3 +1,18 @@
+# ── Production HTTPS config (rendered from a template) ───────────────────────
+# This file lives under /etc/nginx/templates/ — the official nginx image's
+# docker-entrypoint runs `envsubst` on every *.template file here at container
+# start and writes the result to /etc/nginx/conf.d/, which is how ${DOMAIN}
+# below gets replaced with the real value from the container environment
+# (set via DOMAIN in the root .env, wired through docker-compose.prod.yml).
+# A plain bind-mount straight into conf.d would NOT perform this substitution —
+# nginx has no concept of ${VAR} interpolation in directives like server_name
+# or ssl_certificate, so ${DOMAIN} would be taken as a literal path/string.
+#
+# envsubst only replaces names that exist as environment variables in the
+# container (DOMAIN is the only one set here), so nginx's own runtime
+# variables below ($host, $remote_addr, $scheme, $http_upgrade, ...) are left
+# alone.
+
 # ── Upstream services ────────────────────────────────────────────────────────
 upstream backend {
     server backend:5000;
@@ -20,6 +35,14 @@ server {
 }
 
 # ── HTTPS ─────────────────────────────────────────────────────────────────────
+# PRODUCTION ONLY — requires a registered domain (DOMAIN in the root .env) and
+# a real SSL certificate at /etc/nginx/ssl/live/${DOMAIN}/. nginx validates
+# that these cert files exist at startup, so on a brand-new server this server
+# block will fail to load until certs are present. See DEPLOYMENT.md §4.3 for
+# the bootstrap order: issue temporary self-signed placeholder certs so nginx
+# can start and serve the ACME challenge above, run certbot to obtain the real
+# certificate (which overwrites the placeholder at the same path), then reload
+# nginx — no config change needed since the path stays the same.
 server {
     listen 443 ssl;
     http2  on;
