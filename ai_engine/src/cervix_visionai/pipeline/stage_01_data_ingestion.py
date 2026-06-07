@@ -1,6 +1,6 @@
 from pathlib import Path
 from cervix_visionai.config.configuration import ConfigurationManager
-from cervix_visionai.components.data_ingestion import DataIngestion
+from cervix_visionai.components.ingest_data import DataIngestion
 from cervix_visionai.utils.logger import logger
 
 STAGE_NAME = "Data Ingestion stage"
