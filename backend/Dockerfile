@@ -5,8 +5,11 @@ ENV NODE_ENV=production
 WORKDIR /app
 
 # Install dependencies first (better layer caching)
+# Full install (incl. devDependencies) — the dev compose runs nodemon via this
+# image; docker-compose.prod.yml overrides CMD to plain `node` so the extra
+# dev packages never run in production, just add a few hundred KB to the image.
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci
 
 # Copy source
 COPY . .
