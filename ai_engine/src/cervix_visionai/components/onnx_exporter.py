@@ -38,11 +38,15 @@ def export_model_to_onnx(
 
     dummy_input = torch.randn(1, 3, *image_size, device=device)
 
-    logger.info(f"Exporting {model_name} → {onnx_path}")
+    logger.info(f"Exporting {model_name} -> {onnx_path}")
     torch.onnx.export(
         model,
         dummy_input,
         str(onnx_path),
+        # Force the legacy TorchScript-based exporter: torch >= 2.x defaults
+        # dynamo=True, which requires the optional `onnxscript` package and
+        # uses dynamic_shapes instead of the dynamic_axes API used below.
+        dynamo=False,
         export_params=True,
         opset_version=17,
         do_constant_folding=True,

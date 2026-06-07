@@ -35,8 +35,8 @@ class OnnxExportPipeline:
         )
         logger.info(
             f"ONNX export complete:\n"
-            f"  Primary  → {ensemble_config.primary_onnx_path}\n"
-            f"  Secondary → {ensemble_config.secondary_onnx_path}"
+            f"  Primary  -> {ensemble_config.primary_onnx_path}\n"
+            f"  Secondary -> {ensemble_config.secondary_onnx_path}"
         )
 
 
