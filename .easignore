@@ -1,0 +1,13 @@
+# EAS Build uploads the whole monorepo (git root), but only frontend/ is
+# needed to build the Expo app. Exclude the other services and their
+# heavyweight artifacts (ai_engine alone is several GB of model checkpoints
+# and datasets) so the upload stays small and fast.
+ai_engine/
+backend/
+nginx/
+myenv/
+.git/
+
+**/__pycache__/
+**/*.pyc
+**/.venv/
