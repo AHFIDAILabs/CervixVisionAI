@@ -14,19 +14,16 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import LottieView from "lottie-react-native";
 import AppHeader from "../Components/Header";
-import { useAuth } from "../../Context/AuthContext";
-import { AuthStackParamList } from "../../types/auth";
+import { CentreStackParamList } from "../../types/centre";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 const AnimatedImageBackground = Animated.createAnimatedComponent(ImageBackground);
 
-type HomeNavigationProps = NativeStackNavigationProp<AuthStackParamList, "home">;
+type HomeNavigationProps = NativeStackNavigationProp<CentreStackParamList, "home">;
 
 export default function HomeScreen() {
   const navigation = useNavigation<HomeNavigationProps>();
-  const { user } = useAuth();
   const scrollY = useRef(new Animated.Value(0)).current;
   const { width } = Dimensions.get("window");
 
@@ -72,8 +69,7 @@ export default function HomeScreen() {
     <View style={styles.screen}>
       <AppHeader
         type="feed"
-        title="AcetowhiteVision AI"
-        avatar={{ uri: user?.userImage || undefined }}
+        title="CervixVision AI"
         showBack={false}
       />
 
@@ -133,31 +129,18 @@ export default function HomeScreen() {
           <View style={styles.ctaRow}>
             <TouchableOpacity
               style={styles.ctaPrimary}
-              onPress={() => navigation.navigate("RegisterScreen" as never)}
+              onPress={() => navigation.navigate("CentreRegisterScreen")}
               activeOpacity={0.8}
             >
-              <Text style={styles.ctaPrimaryText}>Start Screening</Text>
-              <LottieView
-                source={require("../../assets/Logo.png")}
-                autoPlay
-                loop
-                style={{
-                  position: "absolute",
-                  width: 100,
-                  height: 100,
-                  opacity: 0.4,
-                  top: -20,
-                  left: -20,
-                }}
-              />
+              <Text style={styles.ctaPrimaryText}>Register Centre</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.ctaGhost}
-              onPress={() => navigation.navigate("LoginScreen" as never)}
+              onPress={() => navigation.navigate("CentreLoginScreen")}
               activeOpacity={0.8}
             >
-              <Text style={styles.ctaGhostText}>Clinical Login</Text>
+              <Text style={styles.ctaGhostText}>Enter Code</Text>
             </TouchableOpacity>
           </View>
         </AnimatedImageBackground>

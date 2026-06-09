@@ -1,7 +1,6 @@
 export type AppStackParamList = {
   DashboardScreen: undefined;
-  ResultsScreen: undefined;
-    UserProfileScreen: undefined;
-    SettingScreen: undefined;
-    ScanScreen: undefined;
-}
+  ResultsScreen:   undefined;
+  SettingScreen:   undefined;
+  ScanScreen:      undefined;
+};
