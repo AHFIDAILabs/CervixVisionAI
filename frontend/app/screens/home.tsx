@@ -123,11 +123,11 @@ export default function HomeScreen() {
               ],
             }}
           >
-            AcetowhiteVision AI
+            Cervical Vision AI
           </Animated.Text>
 
           <Text style={styles.heroSubtitle}>
-            AI-powered cervical cancer screening — instant, specialist-level results anywhere.
+            AI-powered cervical cancer screening tool for instant, specialist-level results anywhere.
           </Text>
 
           <View style={styles.ctaRow}>
@@ -164,13 +164,11 @@ export default function HomeScreen() {
 
         {/* About Us Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>About Us</Text>
+          <Text style={styles.sectionTitle}>About Cervical Vision AI</Text>
           <Text style={styles.sectionText}>
-            AcetowhiteVision AI (AVE) is a smartphone-based cervical cancer screening tool
-            that delivers specialist-level diagnostics at the point of care. The AI analyzes
-            cervical images offline in under 3 seconds, providing a clear “Positive” or “Negative”
-            result and empowering nurses, midwives, and community health workers to detect
-            cervical abnormalities early and accurately.
+          Cervical Vision AI is a smartphone-based cervical cancer screening tool designed to bring rapid, reliable screening to the point of care.
+ 
+          Using artificial intelligence, the app analyses images of the cervix directly on the device in less than three seconds, even without an internet connection. By providing an immediate positive or negative result, it supports nurses, midwives, and community health workers in identifying women who may need further evaluation and treatment at an early stage, particularly in underserved communities.
           </Text>
         </View>
 
@@ -228,7 +226,7 @@ export default function HomeScreen() {
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text style={styles.copy}>© {new Date().getFullYear()} AcetowhiteVision AI</Text>
+          <Text style={styles.copy}>© {new Date().getFullYear()} CervicalVision AI</Text>
           <View style={styles.linksRow}>
             <TouchableOpacity onPress={() => openLink("https://example.com/terms")}>
               <Text style={styles.linkText}>Terms</Text>
