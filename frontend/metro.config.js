@@ -5,4 +5,7 @@ const config = getDefaultConfig(__dirname, {
   isCSSEnabled: true,
 });
 
+// Allow Metro to bundle .onnx binary model files as assets
+config.resolver.assetExts.push('onnx');
+
 module.exports = config;

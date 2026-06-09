@@ -1,13 +1,12 @@
-// navigation/AppNavigator.tsx
 import React from "react";
-import { useAuth } from "../../Context/AuthContext";
+import { useCentre } from "../../Context/CentreContext";
 import AppStack from "./AppStack";
-import AuthStack from "./AuthStack";
+import CentreStack from "./CentreStack";
 
 export default function AppNavigator() {
-  const { user, loading } = useAuth();
+  const { centre, loading } = useCentre();
 
-  if (loading) return null; // TODO: replace with splash screen
+  if (loading) return null; // splash screen could go here
 
-  return user ? <AppStack /> : <AuthStack />;
+  return centre ? <AppStack /> : <CentreStack />;
 }

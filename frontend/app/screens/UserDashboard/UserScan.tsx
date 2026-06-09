@@ -1,189 +1,222 @@
 import React, { useState } from "react";
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Image,
-  ActivityIndicator,
+  View, Text, TouchableOpacity, StyleSheet, Image,
+  ActivityIndicator, ScrollView,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from "expo-file-system";
 import { MaterialIcons } from "@expo/vector-icons";
-import { Picker } from "@react-native-picker/picker";
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import Toast from "react-native-toast-message";
 import DashboardLayout from "./DashboardLayout";
 import BottomNavigationBar from "../../Components/BottomBar";
-import { uploadScan } from "../../../Services/userService";
+import { useCentre } from "../../../Context/CentreContext";
+import { runOnDeviceInference } from "../../../utils/onDeviceInference";
+import { saveAnalysis } from "../../../db/database";
+import { LocalAnalysis } from "../../../types/centre";
 import { AppStackParamList } from "../../../types/AppStack";
 
 type ScanNav = StackNavigationProp<AppStackParamList, "ScanScreen">;
 
-const SCAN_TYPES = [
-  { label: "General",    value: "general"    },
-  { label: "X-Ray",      value: "xray"       },
-  { label: "MRI",        value: "mri"        },
-  { label: "CT Scan",    value: "ct_scan"    },
-  { label: "Blood Test", value: "blood_test" },
-  { label: "Urine Test", value: "urine_test" },
-  { label: "Other",      value: "other"      },
-];
+// Ensure the images directory for a centre exists and return the dir path
+async function ensureDir(centreCode: string): Promise<string> {
+  const dir = `${FileSystem.documentDirectory}analyses/${centreCode}/`;
+  const info = await FileSystem.getInfoAsync(dir);
+  if (!info.exists) await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
+  return dir;
+}
 
-export default function UploadScanScreen() {
+// Copy the picked image to permanent storage and return the saved URI
+async function persistImage(sourceUri: string, centreCode: string, id: string): Promise<string> {
+  const dir = await ensureDir(centreCode);
+  const dest = `${dir}${id}.jpg`;
+  await FileSystem.copyAsync({ from: sourceUri, to: dest });
+  return dest;
+}
+
+export default function ScanScreen() {
   const navigation = useNavigation<ScanNav>();
-  const [image, setImage]         = useState<string | null>(null);
-  const [imageMime, setImageMime] = useState<string>("image/jpeg");
-  const [scanType, setScanType]   = useState("general");
-  const [uploading, setUploading] = useState(false);
+  const { centre } = useCentre();
+
+  const [image, setImage]       = useState<string | null>(null);
+  const [analysing, setAnalysing] = useState(false);
 
   const pickImage = async (fromCamera: boolean) => {
     try {
       const result = fromCamera
-        ? await ImagePicker.launchCameraAsync({ mediaTypes: "images", allowsEditing: true, quality: 1 })
-        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: "images", allowsEditing: true, quality: 1 });
-      if (!result.canceled) {
-        setImage(result.assets[0].uri);
-        setImageMime(result.assets[0].mimeType ?? "image/jpeg");
-      }
+        ? await ImagePicker.launchCameraAsync({
+            mediaTypes: "images", allowsEditing: true, quality: 1,
+          })
+        : await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: "images", allowsEditing: true, quality: 1,
+          });
+      if (!result.canceled) setImage(result.assets[0].uri);
     } catch {
       Toast.show({ type: "error", text1: "Could not open image picker." });
     }
   };
 
-  const handleUpload = async () => {
-    if (!image) {
-      Toast.show({ type: "info", text1: "Please select a scan image first." });
-      return;
-    }
+  const handleAnalyse = async () => {
+    if (!image || !centre) return;
 
-    setUploading(true);
+    setAnalysing(true);
     try {
-      const formData = new FormData();
-      formData.append("scan", {
-        uri:  image,
-        name: `scan_${Date.now()}.jpg`,
-        type: imageMime,
-      } as any);
-      formData.append("type", scanType);
+      // 1. Run on-device ONNX ensemble inference
+      const result = await runOnDeviceInference(image);
 
-      await uploadScan(formData);
+      // 2. Persist image to permanent local storage
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const savedPath = await persistImage(image, centre.code, id);
 
-      // Clear the selected image and navigate to results immediately.
-      // The AI analysis runs in the background on the server — a socket
-      // notification will arrive when it's complete.
+      // 3. Save result to SQLite
+      const analysis: LocalAnalysis = {
+        id,
+        centreCode:        centre.code,
+        imagePath:         savedPath,
+        prediction:        result.prediction,
+        confidence:        result.confidence,
+        risk_score:        result.risk_score,
+        risk_level:        result.risk_level,
+        uncertainty_score: result.uncertainty_score,
+        uncertainty_level: result.uncertainty_level,
+        lesion_class:      result.lesion_class,
+        recommendation:    result.recommendation,
+        source:            "on_device",
+        createdAt:         new Date().toISOString(),
+        synced:            false,
+      };
+      saveAnalysis(analysis);
+
       setImage(null);
       Toast.show({
         type: "success",
-        text1: "Scan uploaded",
-        text2: "AI analysis has started. You'll be notified when results are ready.",
-        visibilityTime: 5000,
+        text1: `Result: ${result.prediction}`,
+        text2: result.risk_level,
+        visibilityTime: 4000,
       });
       navigation.navigate("ResultsScreen");
-    } catch {
-      Toast.show({ type: "error", text1: "Upload failed", text2: "Please try again." });
+    } catch (err) {
+      Toast.show({
+        type: "error",
+        text1: "Analysis failed",
+        text2: "Please try again with a clearer image.",
+      });
     } finally {
-      setUploading(false);
+      setAnalysing(false);
     }
   };
 
   return (
     <DashboardLayout>
-      <View style={styles.container}>
-        <Text style={styles.title}>Upload Your Scan</Text>
+      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+        <Text style={styles.title}>Cervical Scan</Text>
         <Text style={styles.subtitle}>
-          Take a photo or choose from your gallery. AI analysis begins immediately after upload.
+          Capture or upload a VIA cervical image. Analysis runs instantly on this device — no internet needed.
         </Text>
 
-        <View style={styles.pickerBox}>
-          <Picker
-            selectedValue={scanType}
-            onValueChange={(v) => setScanType(v)}
-            style={styles.picker}
-            dropdownIconColor="#6b7280"
-          >
-            {SCAN_TYPES.map((t) => (
-              <Picker.Item key={t.value} label={t.label} value={t.value} />
-            ))}
-          </Picker>
-        </View>
-
-        <TouchableOpacity style={styles.uploadBox} activeOpacity={0.8} onPress={() => pickImage(false)}>
+        {/* Image preview / drop zone */}
+        <TouchableOpacity
+          style={styles.uploadBox}
+          activeOpacity={0.8}
+          onPress={() => pickImage(false)}
+          disabled={analysing}
+        >
           {image ? (
             <Image source={{ uri: image }} style={styles.previewImage} />
           ) : (
             <>
-              <MaterialIcons name="cloud-upload" size={48} color="#9333ea" />
-              <Text style={styles.uploadText}>Tap to select from gallery</Text>
+              <MaterialIcons name="add-photo-alternate" size={52} color="#0EA5A4" />
+              <Text style={styles.uploadText}>Tap to upload from gallery</Text>
+              <Text style={styles.uploadHint}>or use the Camera button below</Text>
             </>
           )}
         </TouchableOpacity>
 
-        {image && (
-          <TouchableOpacity style={styles.clearBtn} onPress={() => setImage(null)}>
+        {image ? (
+          <TouchableOpacity style={styles.clearBtn} onPress={() => setImage(null)} disabled={analysing}>
             <Text style={styles.clearText}>✕  Remove image</Text>
           </TouchableOpacity>
-        )}
+        ) : null}
 
+        {/* Centre identifier badge */}
+        {centre ? (
+          <View style={styles.centreBadge}>
+            <MaterialIcons name="local-hospital" size={14} color="#0EA5A4" />
+            <Text style={styles.centreText}>{centre.name}  ·  {centre.code}</Text>
+          </View>
+        ) : null}
+
+        {/* Action buttons */}
         <View style={styles.actionsRow}>
           <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: "#2563eb" }]}
             onPress={() => pickImage(true)}
-            disabled={uploading}
+            disabled={analysing}
           >
-            <MaterialIcons name="photo-camera" size={24} color="#fff" />
+            <MaterialIcons name="photo-camera" size={22} color="#fff" />
             <Text style={styles.btnText}>Camera</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: "#9333ea" }, !image && styles.btnDisabled]}
-            onPress={handleUpload}
-            disabled={uploading || !image}
+            style={[styles.actionBtn, { backgroundColor: "#0EA5A4" }, !image && styles.btnDisabled]}
+            onPress={handleAnalyse}
+            disabled={analysing || !image}
           >
-            {uploading ? (
+            {analysing ? (
               <>
                 <ActivityIndicator color="#fff" style={{ marginRight: 6 }} />
-                <Text style={styles.btnText}>Uploading…</Text>
+                <Text style={styles.btnText}>Analysing…</Text>
               </>
             ) : (
               <>
-                <MaterialIcons name="cloud-upload" size={24} color="#fff" />
+                <MaterialIcons name="biotech" size={22} color="#fff" />
                 <Text style={styles.btnText}>Analyse</Text>
               </>
             )}
           </TouchableOpacity>
         </View>
-      </View>
+
+        {analysing ? (
+          <Text style={styles.inferenceNote}>
+            Running AI model on device. This may take a few seconds…
+          </Text>
+        ) : null}
+      </ScrollView>
       <BottomNavigationBar active="scan" />
     </DashboardLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  container:   { flex: 1, padding: 20, backgroundColor: "#f9fafb" },
-  title:       { fontSize: 24, fontWeight: "700", color: "#111827", marginBottom: 8 },
-  subtitle:    { fontSize: 14, color: "#6b7280", marginBottom: 12, lineHeight: 20 },
-  pickerBox: {
-    borderWidth: 1, borderColor: "#D1D5DB", borderRadius: 12,
-    backgroundColor: "#fff", height: 50, justifyContent: "center",
-    marginBottom: 16, overflow: "hidden",
-  },
-  picker:      { color: "#111827", width: "100%", height: "100%" },
+  container:    { flexGrow: 1, padding: 20, backgroundColor: "#f9fafb" },
+  title:        { fontSize: 24, fontWeight: "700", color: "#111827", marginBottom: 6 },
+  subtitle:     { fontSize: 14, color: "#6b7280", marginBottom: 20, lineHeight: 20 },
   uploadBox: {
     backgroundColor: "#fff", borderRadius: 16, borderWidth: 2,
-    borderStyle: "dashed", borderColor: "#9333ea",
+    borderStyle: "dashed", borderColor: "#0EA5A4",
     justifyContent: "center", alignItems: "center",
-    padding: 40, marginBottom: 12,
+    paddingVertical: 40, paddingHorizontal: 20, marginBottom: 10,
+    minHeight: 200,
   },
-  uploadText:  { marginTop: 10, fontSize: 14, color: "#6b7280" },
-  previewImage: { width: "100%", height: 200, borderRadius: 12, resizeMode: "cover" },
-  clearBtn:    { alignSelf: "flex-end", marginBottom: 12 },
-  clearText:   { color: "#ef4444", fontSize: 13, fontWeight: "500" },
-  actionsRow:  { flexDirection: "row", justifyContent: "space-between" },
+  previewImage: { width: "100%", height: 220, borderRadius: 12, resizeMode: "cover" },
+  uploadText:   { marginTop: 10, fontSize: 15, color: "#374151", fontWeight: "600" },
+  uploadHint:   { marginTop: 4, fontSize: 13, color: "#9ca3af" },
+  clearBtn:     { alignSelf: "flex-end", marginBottom: 10 },
+  clearText:    { color: "#ef4444", fontSize: 13, fontWeight: "500" },
+  centreBadge: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    backgroundColor: "#f0fdfa", borderRadius: 8, paddingHorizontal: 10,
+    paddingVertical: 6, alignSelf: "flex-start", marginBottom: 16,
+    borderWidth: 1, borderColor: "#99f6e4",
+  },
+  centreText:   { fontSize: 12, color: "#0f766e", fontWeight: "600" },
+  actionsRow:   { flexDirection: "row", justifyContent: "space-between", gap: 10 },
   actionBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
-    flex: 1, paddingVertical: 14, borderRadius: 12, marginHorizontal: 5,
+    flex: 1, paddingVertical: 14, borderRadius: 12,
   },
-  btnDisabled: { opacity: 0.45 },
-  btnText:     { color: "#fff", fontWeight: "600", marginLeft: 6 },
+  btnDisabled:  { opacity: 0.4 },
+  btnText:      { color: "#fff", fontWeight: "700", marginLeft: 6, fontSize: 15 },
+  inferenceNote:{ marginTop: 16, fontSize: 13, color: "#6b7280", textAlign: "center", lineHeight: 18 },
 });
