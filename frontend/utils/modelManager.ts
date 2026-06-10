@@ -23,15 +23,18 @@ export interface ModelFile {
 // Example: https://github.com/AHFIDAILabs/CervixVisionAI/releases/download/models-v1/swin_model.onnx
 export const MODEL_FILES: ModelFile[] = [
   {
+    // GitHub Releases rejects .onnx as a file extension, so the asset is
+    // uploaded with a .zip extension (same raw bytes, not actually
+    // compressed) and saved locally under its real .onnx name.
     key: "swin",
     filename: "swin_model.onnx",
-    url: "https://github.com/AHFIDAILabs/CervixVisionAI/releases/download/models-v1/swin_model.onnx",
+    url: "https://github.com/AHFIDAILabs/CervixVisionAI/releases/download/models-v1/swin_model.zip",
     sizeBytes: 336_300_000,
   },
   {
     key: "efficientnet",
     filename: "efficientnet_model.onnx",
-    url: "https://github.com/AHFIDAILabs/CervixVisionAI/releases/download/models-v1/efficientnet_model.onnx",
+    url: "https://github.com/AHFIDAILabs/CervixVisionAI/releases/download/models-v1/efficientnet_model.zip",
     sizeBytes: 40_700_000,
   },
 ];
