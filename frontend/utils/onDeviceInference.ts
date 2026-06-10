@@ -10,8 +10,18 @@
  */
 
 import * as ImageManipulator from "expo-image-manipulator";
-import { InferenceSession, Tensor } from "onnxruntime-react-native";
+import type { InferenceSession as InferenceSessionType, Tensor as TensorType } from "onnxruntime-react-native";
 import { MODEL_FILES, getModelPath } from "./modelManager";
+
+// onnxruntime-react-native runs Module.install() as a side effect of being
+// imported (see its lib/binding.ts). If that native module isn't linked,
+// importing it eagerly crashes the whole app at startup — even on screens
+// that never run inference, because this file is statically imported by the
+// navigation tree. Load it lazily, only when inference actually runs.
+function getOnnx(): typeof import("onnxruntime-react-native") {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  return require("onnxruntime-react-native");
+}
 
 // ImageNet normalisation constants — must match ai_engine training transforms
 const MEAN = [0.485, 0.456, 0.406];
@@ -37,8 +47,8 @@ export interface OnDeviceResult {
 }
 
 // Sessions are lazy-loaded and cached after first use
-let swintSession: InferenceSession | null = null;
-let efficientnetSession: InferenceSession | null = null;
+let swintSession: InferenceSessionType | null = null;
+let efficientnetSession: InferenceSessionType | null = null;
 
 // ONNX Runtime's native loader expects a plain filesystem path (no "file://" scheme)
 function toNativePath(uri: string): string {
@@ -47,6 +57,8 @@ function toNativePath(uri: string): string {
 
 async function loadSessions(): Promise<void> {
   if (swintSession && efficientnetSession) return;
+
+  const { InferenceSession } = getOnnx();
 
   const swinPath         = toNativePath(getModelPath(MODEL_FILES.find((m) => m.key === "swin")!.filename));
   const efficientnetPath = toNativePath(getModelPath(MODEL_FILES.find((m) => m.key === "efficientnet")!.filename));
@@ -148,9 +160,10 @@ function buildResult(fusedPositiveProb: number): OnDeviceResult {
  */
 export async function runOnDeviceInference(imageUri: string): Promise<OnDeviceResult> {
   await loadSessions();
+  const { Tensor } = getOnnx();
 
   const inputData = await preprocessImage(imageUri);
-  const inputTensor = new Tensor("float32", inputData, [1, 3, 224, 224]);
+  const inputTensor: TensorType = new Tensor("float32", inputData, [1, 3, 224, 224]);
   const feeds = { image: inputTensor };
 
   const [swintOutput, efficientnetOutput] = await Promise.all([
