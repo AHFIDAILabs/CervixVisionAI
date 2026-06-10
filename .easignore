@@ -11,3 +11,8 @@ myenv/
 **/__pycache__/
 **/*.pyc
 **/.venv/
+
+# ONNX model weights — downloaded at runtime (see frontend/utils/modelManager.ts),
+# not needed for the build itself
+frontend/assets/models/*.onnx
+frontend/assets/models/*.zip
