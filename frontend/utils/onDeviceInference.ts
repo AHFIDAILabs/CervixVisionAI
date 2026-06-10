@@ -1,20 +1,17 @@
 /**
- * On-device ensemble inference using bundled ONNX models.
+ * On-device ensemble inference using downloaded ONNX models.
  *
- * Used as an offline fallback when the device has no network connectivity.
  * Mirrors the server-side inference pipeline (Swin + EfficientNet-B3 weighted
  * average) but runs entirely on the Android device via ONNX Runtime.
  *
- * Prerequisites:
- *   1. Trained ONNX models copied to frontend/assets/models/:
- *        cp ai_engine/artifacts/onnx/swin_model.onnx       frontend/assets/models/
- *        cp ai_engine/artifacts/onnx/efficientnet_model.onnx frontend/assets/models/
- *   2. onnxruntime-react-native installed (already in package.json)
- *   3. expo-image-manipulator installed (already in package.json)
+ * Models are downloaded once on first launch (see utils/modelManager.ts and
+ * ModelDownloadScreen) and cached in the document directory — they are NOT
+ * bundled in the APK, since files >100MB break Android's resource packager.
  */
 
 import * as ImageManipulator from "expo-image-manipulator";
 import { InferenceSession, Tensor } from "onnxruntime-react-native";
+import { MODEL_FILES, getModelPath } from "./modelManager";
 
 // ImageNet normalisation constants — must match ai_engine training transforms
 const MEAN = [0.485, 0.456, 0.406];
@@ -43,17 +40,19 @@ export interface OnDeviceResult {
 let swintSession: InferenceSession | null = null;
 let efficientnetSession: InferenceSession | null = null;
 
+// ONNX Runtime's native loader expects a plain filesystem path (no "file://" scheme)
+function toNativePath(uri: string): string {
+  return uri.startsWith("file://") ? uri.slice("file://".length) : uri;
+}
+
 async function loadSessions(): Promise<void> {
   if (swintSession && efficientnetSession) return;
 
-  // Models must be bundled in assets/models/ and referenced with require()
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const swintModel        = require("../assets/models/swin_model.onnx");
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const efficientnetModel = require("../assets/models/efficientnet_model.onnx");
+  const swinPath         = toNativePath(getModelPath(MODEL_FILES.find((m) => m.key === "swin")!.filename));
+  const efficientnetPath = toNativePath(getModelPath(MODEL_FILES.find((m) => m.key === "efficientnet")!.filename));
 
-  swintSession        = await InferenceSession.create(swintModel);
-  efficientnetSession = await InferenceSession.create(efficientnetModel);
+  swintSession        = await InferenceSession.create(swinPath);
+  efficientnetSession = await InferenceSession.create(efficientnetPath);
 }
 
 /**

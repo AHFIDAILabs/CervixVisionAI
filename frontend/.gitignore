@@ -41,5 +41,7 @@ yarn-error.*
 /ios
 /android
 
-# ONNX model weights — large binaries, copy from ai_engine/artifacts/onnx/
+# ONNX model weights — not bundled in the app (downloaded on first launch,
+# see utils/modelManager.ts). Kept here only as a staging copy for uploading
+# to the GitHub Release; copy from ai_engine/artifacts/onnx/.
 assets/models/*.onnx

@@ -68,7 +68,6 @@ export default function HomeScreen() {
   return (
     <View style={styles.screen}>
       <AppHeader
-        type="feed"
         title="CervixVision AI"
         showBack={false}
       />
