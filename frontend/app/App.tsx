@@ -1,19 +1,17 @@
 import React from "react";
-import { NavigationContainer } from "@react-navigation/native";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { CentreProvider } from "../Context/CentreContext";
-import AppNavigator from "./navigation/AppNavigator";
-import Toast from "react-native-toast-message";
+import { View, Text, StyleSheet } from "react-native";
 
+// TEMPORARY — minimal app for crash isolation testing.
+// No providers, navigation, SQLite, SecureStore, or gesture-handler.
 export default function App() {
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <CentreProvider>
-        <NavigationContainer>
-          <AppNavigator />
-        </NavigationContainer>
-        <Toast />
-      </CentreProvider>
-    </GestureHandlerRootView>
+    <View style={styles.container}>
+      <Text style={styles.text}>Hello World</Text>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#fff" },
+  text: { fontSize: 24, fontWeight: "700" },
+});
