@@ -25,8 +25,6 @@ type HomeNavigationProps = NativeStackNavigationProp<CentreStackParamList, "home
 export default function HomeScreen() {
   const navigation = useNavigation<HomeNavigationProps>();
   const scrollY = useRef(new Animated.Value(0)).current;
-  const { width } = Dimensions.get("window");
-
   const galleryImages = [
     require("../../assets/analyzer_1.jpeg"),
     require("../../assets/analyzer_2.jpeg"),
@@ -83,6 +81,7 @@ export default function HomeScreen() {
       >
         <AnimatedImageBackground
           source={require("../../assets/heart.jpeg")}
+          resizeMode="cover"
           style={{
             ...styles.hero,
             transform: [
@@ -249,40 +248,44 @@ export default function HomeScreen() {
   );
 }
 
+const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
+
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#fff" },
   contentContainer: { paddingBottom: 40 },
   hero: {
-    height: 320,
+    width: screenWidth,
+    height: screenHeight * 0.52,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 8,
   },
   heroOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.45)" },
-  heroTitle: { color: "#fff", fontSize: 34, fontWeight: "800", zIndex: 2 },
+  heroTitle: { color: "#fff", fontSize: 34, fontWeight: "800", zIndex: 2, textAlign: "center", paddingHorizontal: 16 },
   heroSubtitle: {
     color: "#e6eefc",
-    marginTop: 8,
+    marginTop: 10,
     textAlign: "center",
-    paddingHorizontal: 24,
+    paddingHorizontal: 28,
     fontSize: 15,
+    lineHeight: 22,
     zIndex: 2,
   },
-  ctaRow: { flexDirection: "row", marginTop: 18, zIndex: 2 },
+  ctaRow: { flexDirection: "row", marginTop: 22, zIndex: 2 },
   ctaPrimary: {
     backgroundColor: "#0EA5A4",
-    paddingVertical: 12,
-    paddingHorizontal: 22,
+    paddingVertical: 13,
+    paddingHorizontal: 24,
     borderRadius: 12,
     marginRight: 12,
     overflow: "hidden",
   },
   ctaPrimaryText: { color: "#fff", fontWeight: "700" },
   ctaGhost: {
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: "#fff",
-    paddingVertical: 12,
-    paddingHorizontal: 18,
+    paddingVertical: 13,
+    paddingHorizontal: 20,
     borderRadius: 12,
   },
   ctaGhostText: { color: "#fff", fontWeight: "600" },
@@ -291,21 +294,22 @@ const styles = StyleSheet.create({
   sectionText: { fontSize: 15, lineHeight: 22, color: "#374151" },
   gallery: { paddingLeft: 20, marginTop: 6 },
   galleryImage: {
-    width: 220,
-    height: 140,
-    borderRadius: 10,
+    width: screenWidth * 0.72,
+    height: 190,
+    borderRadius: 12,
     marginRight: 12,
     backgroundColor: "#ddd",
+    resizeMode: "cover",
   },
   partnerCard: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#fafafa",
-    padding: 12,
+    padding: 14,
     borderRadius: 12,
     marginBottom: 12,
   },
-  partnerLogo: { width: 64, height: 64, borderRadius: 8, marginRight: 12 },
+  partnerLogo: { width: 64, height: 64, borderRadius: 8, marginRight: 12, resizeMode: "contain" },
   partnerName: { fontSize: 16, fontWeight: "700" },
   partnerAddress: { color: "#6b7280", marginTop: 3 },
   footer: {
