@@ -26,6 +26,7 @@
       "bundleIdentifier": "com.ahfidailabs.cervixvisionai"
     },
     "android": {
+      "newArchEnabled": false,
       "package": "com.ahfidailabs.cervixvisionai",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
