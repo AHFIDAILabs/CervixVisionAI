@@ -63,13 +63,19 @@ async function loadSessions(): Promise<void> {
   const swinPath         = toNativePath(getModelPath(MODEL_FILES.find((m) => m.key === "swin")!.filename));
   const efficientnetPath = toNativePath(getModelPath(MODEL_FILES.find((m) => m.key === "efficientnet")!.filename));
 
-  swintSession        = await InferenceSession.create(swinPath);
+  console.log("[ORT] Loading Swin from:", swinPath);
+  swintSession = await InferenceSession.create(swinPath);
+  console.log("[ORT] Swin ready — inputs:", swintSession.inputNames, "outputs:", swintSession.outputNames);
+
+  console.log("[ORT] Loading EfficientNet from:", efficientnetPath);
   efficientnetSession = await InferenceSession.create(efficientnetPath);
+  console.log("[ORT] EfficientNet ready — inputs:", efficientnetSession.inputNames, "outputs:", efficientnetSession.outputNames);
 }
 
 /**
  * Resize and preprocess an image URI into an NCHW Float32Array.
- * Steps: resize → decode base64 → normalise with ImageNet mean/std → NCHW reshape.
+ * Steps: resize to 224×224 JPEG → base64-decode to JPEG bytes → JPEG-decode to
+ * raw RGBA pixels (via jpeg-js) → ImageNet normalise → NCHW reshape.
  */
 async function preprocessImage(imageUri: string): Promise<Float32Array> {
   const resized = await ImageManipulator.manipulateAsync(
@@ -80,20 +86,30 @@ async function preprocessImage(imageUri: string): Promise<Float32Array> {
 
   if (!resized.base64) throw new Error("Image manipulation failed — no base64 output.");
 
-  // Decode base64 JPEG bytes
-  const raw = atob(resized.base64);
-  const bytes = new Uint8Array(raw.length);
-  for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+  // base64 → raw JPEG file bytes
+  const b64 = resized.base64;
+  const raw  = atob(b64);
+  const jpegBytes = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) jpegBytes[i] = raw.charCodeAt(i);
 
-  // Extract RGB channels from raw bytes (JPEG decoded as interleaved RGB)
+  // Decode JPEG file bytes → raw RGBA pixels (useTArray avoids Buffer dependency)
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { decode } = require("jpeg-js") as {
+    decode: (data: Uint8Array, opts: { useTArray: boolean }) => {
+      data: Uint8Array; width: number; height: number;
+    };
+  };
+  const { data: rgba, width, height } = decode(jpegBytes, { useTArray: true });
+
+  // RGBA → NCHW Float32Array with ImageNet normalisation
   // ONNX Runtime expects NCHW: [1, 3, 224, 224]
-  const pixels = 224 * 224;
+  const pixels = width * height;
   const tensor = new Float32Array(3 * pixels);
 
   for (let i = 0; i < pixels; i++) {
-    const r = bytes[i * 3]     / 255;
-    const g = bytes[i * 3 + 1] / 255;
-    const b = bytes[i * 3 + 2] / 255;
+    const r = rgba[i * 4]     / 255;
+    const g = rgba[i * 4 + 1] / 255;
+    const b = rgba[i * 4 + 2] / 255;
 
     tensor[i]               = (r - MEAN[0]) / STD[0]; // R channel
     tensor[pixels + i]      = (g - MEAN[1]) / STD[1]; // G channel

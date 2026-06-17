@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
   View, Text, TouchableOpacity, StyleSheet, Image,
-  ActivityIndicator, ScrollView,
+  ActivityIndicator, ScrollView, Alert,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system/legacy";
@@ -58,7 +58,11 @@ export default function ScanScreen() {
   };
 
   const handleAnalyse = async () => {
-    if (!image || !centre) return;
+    console.log("[SCAN] handleAnalyse fired. image:", image ? "set" : "null", "centre:", centre?.code ?? "null");
+    if (!image || !centre) {
+      Alert.alert("Cannot analyse", !image ? "Pick an image first." : "No centre selected.");
+      return;
+    }
 
     setAnalysing(true);
     console.log("[SCAN] handleAnalyse: start", { image: image?.slice(-30), centre: centre?.code });
@@ -102,6 +106,7 @@ export default function ScanScreen() {
       navigation.navigate("ResultsScreen");
     } catch (err: any) {
       console.error("[SCAN] CAUGHT ERROR:", err?.message, err?.stack);
+      Alert.alert("Analysis failed", err?.message || "Please try again with a clearer image.");
       Toast.show({
         type: "error",
         text1: "Analysis failed",
