@@ -1,7 +1,7 @@
-const { withAndroidGradleProperties } = require("expo/config-plugins");
+const { withGradleProperties } = require("@expo/config-plugins");
 
 module.exports = function withGradleMemory(config) {
-  return withAndroidGradleProperties(config, (props) => {
+  return withGradleProperties(config, (props) => {
     const filtered = props.filter(
       (item) => !(item.type === "property" && item.key === "org.gradle.jvmargs")
     );
