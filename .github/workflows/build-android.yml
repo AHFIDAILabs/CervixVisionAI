@@ -3,7 +3,9 @@ name: Build Android Preview APK
 on:
   push:
     branches: [main]
-    paths: [frontend/**]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/build-android.yml'
   workflow_dispatch:
 
 jobs:
