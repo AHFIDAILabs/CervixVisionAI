@@ -42,6 +42,7 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      "./plugins/withGradleMemory",
       "expo-secure-store",
       [
         "expo-image-picker",
