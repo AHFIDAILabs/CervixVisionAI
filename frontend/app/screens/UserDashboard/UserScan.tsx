@@ -1,8 +1,12 @@
 import React, { useState } from "react";
 import {
   View, Text, TouchableOpacity, StyleSheet, Image,
-  ActivityIndicator, ScrollView, Alert,
+  ActivityIndicator, ScrollView, Alert, ToastAndroid, Platform,
 } from "react-native";
+
+function nativeToast(msg: string) {
+  if (Platform.OS === "android") ToastAndroid.show(msg, ToastAndroid.LONG);
+}
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -58,23 +62,21 @@ export default function ScanScreen() {
   };
 
   const handleAnalyse = async () => {
-    console.log("[SCAN] handleAnalyse fired. image:", image ? "set" : "null", "centre:", centre?.code ?? "null");
+    nativeToast("SCAN 1/5: button pressed");
     if (!image || !centre) {
       Alert.alert("Cannot analyse", !image ? "Pick an image first." : "No centre selected.");
+      nativeToast("SCAN guard: no image or centre");
       return;
     }
 
     setAnalysing(true);
-    console.log("[SCAN] handleAnalyse: start", { image: image?.slice(-30), centre: centre?.code });
+    nativeToast("SCAN 2/5: calling inference…");
     try {
-      console.log("[SCAN] calling runOnDeviceInference...");
       const result = await runOnDeviceInference(image);
-      console.log("[SCAN] inference done:", result.prediction, result.confidence);
+      nativeToast(`SCAN 3/5: inference OK — ${result.prediction} ${(result.confidence * 100).toFixed(0)}%`);
 
       const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      console.log("[SCAN] persisting image...");
       const savedPath = await persistImage(image, centre.code, id);
-      console.log("[SCAN] image persisted:", savedPath?.slice(-40));
 
       const analysis: LocalAnalysis = {
         id,
@@ -92,9 +94,9 @@ export default function ScanScreen() {
         createdAt:         new Date().toISOString(),
         synced:            false,
       };
-      console.log("[SCAN] saving to SQLite...");
+      nativeToast("SCAN 4/5: saving to DB…");
       saveAnalysis(analysis);
-      console.log("[SCAN] saved. Navigating to ResultsScreen.");
+      nativeToast("SCAN 5/5: navigating to results");
 
       setImage(null);
       Toast.show({
@@ -105,12 +107,13 @@ export default function ScanScreen() {
       });
       navigation.navigate("ResultsScreen");
     } catch (err: any) {
-      console.error("[SCAN] CAUGHT ERROR:", err?.message, err?.stack);
-      Alert.alert("Analysis failed", err?.message || "Please try again with a clearer image.");
+      const msg = err?.message ?? "Unknown error";
+      nativeToast(`SCAN ERROR: ${msg.slice(0, 80)}`);
+      Alert.alert("Analysis failed", msg);
       Toast.show({
         type: "error",
         text1: "Analysis failed",
-        text2: err?.message || "Please try again with a clearer image.",
+        text2: msg,
       });
     } finally {
       setAnalysing(false);

@@ -9,9 +9,15 @@
  * bundled in the APK, since files >100MB break Android's resource packager.
  */
 
+import { Alert, ToastAndroid, Platform } from "react-native";
+import * as FileSystem from "expo-file-system/legacy";
 import * as ImageManipulator from "expo-image-manipulator";
 import type { InferenceSession as InferenceSessionType, Tensor as TensorType } from "onnxruntime-react-native";
 import { MODEL_FILES, getModelPath } from "./modelManager";
+
+function ort(msg: string) {
+  if (Platform.OS === "android") ToastAndroid.show(msg, ToastAndroid.LONG);
+}
 
 // onnxruntime-react-native runs Module.install() as a side effect of being
 // imported (see its lib/binding.ts). If that native module isn't linked,
@@ -58,18 +64,37 @@ function toNativePath(uri: string): string {
 async function loadSessions(): Promise<void> {
   if (swintSession && efficientnetSession) return;
 
+  // Validate model files before touching ORT — gives a clear error instead of a
+  // silent JNI crash if the download was incomplete or corrupt.
+  const MIN_BYTES: Record<string, number> = { swin: 300_000_000, efficientnet: 30_000_000 };
+  for (const m of MODEL_FILES) {
+    const path = getModelPath(m.filename);
+    const info = await FileSystem.getInfoAsync(path);
+    ort(`ORT check: ${m.filename} exists=${info.exists} size=${info.exists ? (info.size / 1e6).toFixed(0) + "MB" : "N/A"}`);
+    if (!info.exists) {
+      const msg = `Model file missing: ${m.filename}. Go to Model Setup and re-download.`;
+      Alert.alert("Model missing", msg);
+      throw new Error(msg);
+    }
+    if (info.size < MIN_BYTES[m.key]) {
+      const msg = `Model incomplete: ${m.filename} is ${(info.size / 1e6).toFixed(0)}MB, expected ≥${(MIN_BYTES[m.key] / 1e6).toFixed(0)}MB. Clear app data and re-download.`;
+      Alert.alert("Model incomplete", msg);
+      throw new Error(msg);
+    }
+  }
+
   const { InferenceSession } = getOnnx();
 
   const swinPath         = toNativePath(getModelPath(MODEL_FILES.find((m) => m.key === "swin")!.filename));
   const efficientnetPath = toNativePath(getModelPath(MODEL_FILES.find((m) => m.key === "efficientnet")!.filename));
 
-  console.log("[ORT] Loading Swin from:", swinPath);
+  ort("ORT: loading Swin (336MB — may take 1–2 min)…");
   swintSession = await InferenceSession.create(swinPath);
-  console.log("[ORT] Swin ready — inputs:", swintSession.inputNames, "outputs:", swintSession.outputNames);
+  ort(`ORT: Swin ready inputs=${swintSession.inputNames} outputs=${swintSession.outputNames}`);
 
-  console.log("[ORT] Loading EfficientNet from:", efficientnetPath);
+  ort("ORT: loading EfficientNet…");
   efficientnetSession = await InferenceSession.create(efficientnetPath);
-  console.log("[ORT] EfficientNet ready — inputs:", efficientnetSession.inputNames, "outputs:", efficientnetSession.outputNames);
+  ort(`ORT: EfficientNet ready inputs=${efficientnetSession.inputNames} outputs=${efficientnetSession.outputNames}`);
 }
 
 /**
