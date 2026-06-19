@@ -51,7 +51,8 @@
           "cameraPermission": "CervixVisionAI needs access to your camera to capture scan images.",
           "microphonePermission": false
         }
-      ]
+      ],
+      "onnxruntime-react-native"
     ],
     "runtimeVersion": {
       "policy": "appVersion"
