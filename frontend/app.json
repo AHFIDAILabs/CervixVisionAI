@@ -27,7 +27,6 @@
     },
     "android": {
       "package": "com.ahfidailabs.cervixvisionai",
-      "newArchEnabled": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
