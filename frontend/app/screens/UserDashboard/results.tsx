@@ -20,6 +20,58 @@ const riskColour = (risk_level?: string) => {
   return "#10b981";
 };
 
+// Dynamic clinical interpretation combining all three metrics.
+// This replaces the single static recommendation string with context-aware text.
+function clinicalInterpretation(r: LocalAnalysis): { title: string; detail: string; color: string } {
+  const riskPct  = (r.risk_score  * 100).toFixed(1);
+  const confPct  = (r.confidence  * 100).toFixed(1);
+  const highU    = r.uncertainty_level === "High";
+
+  if (r.prediction === "Negative") {
+    return highU
+      ? {
+          title:  "Borderline Negative — Follow-up Advised",
+          detail: `Risk Score ${riskPct}% with AI Confidence only ${confPct}%. The model leans negative but is uncertain — finding sits near the detection boundary. Consider repeat examination or review at the next screening cycle.`,
+          color:  "#f59e0b",
+        }
+      : {
+          title:  "Likely Clear — Routine Follow-up",
+          detail: `Risk Score ${riskPct}%, AI Confidence ${confPct}%. The model is reasonably confident of a negative finding. Reassure the patient and schedule routine screening as per protocol.`,
+          color:  "#10b981",
+        };
+  }
+
+  // Positive predictions — four scenarios from the interpretation table
+  const risk = r.risk_score;
+  if (risk >= 0.65 && !highU) {
+    return {
+      title:  "High Risk — Refer Urgently",
+      detail: `Risk Score ${riskPct}%, AI Confidence ${confPct}%. Clear acetowhite finding with moderate-to-strong model decisiveness. Refer to a qualified specialist without delay.`,
+      color:  "#ef4444",
+    };
+  }
+  if (risk >= 0.65 && highU) {
+    return {
+      title:  "High Risk — Specialist Review Required",
+      detail: `Risk Score ${riskPct}% but AI Confidence is only ${confPct}%. High-risk score despite uncertain image or ambiguous findings. Do not delay specialist referral — clinician must assess image quality.`,
+      color:  "#ef4444",
+    };
+  }
+  if (risk >= 0.50) {
+    return {
+      title:  "Moderate Risk — Clinical Review Needed",
+      detail: `Risk Score ${riskPct}%, AI Confidence ${confPct}%. Positive finding with moderate model confidence. Consult a healthcare professional for further evaluation before any clinical decision.`,
+      color:  "#f59e0b",
+    };
+  }
+  // 0.30–0.50: barely above threshold
+  return {
+    title:  "Borderline Positive — Human Review Essential",
+    detail: `Risk Score ${riskPct}% barely above the detection threshold, AI Confidence only ${confPct}%. The model is almost undecided — result is essentially inconclusive. A trained clinician must review the image before any clinical action is taken.`,
+    color:  "#f97316",
+  };
+}
+
 // ── Detail Modal ──────────────────────────────────────────────────────────────
 
 function DetailModal({ result, onClose }: { result: LocalAnalysis | null; onClose: () => void }) {
@@ -56,14 +108,30 @@ function DetailModal({ result, onClose }: { result: LocalAnalysis | null; onClos
 
           {/* Metrics grid */}
           <View style={modal.metricsGrid}>
-            {[
-              { label: "Confidence",  value: `${(result.confidence * 100).toFixed(1)}%` },
-              { label: "Risk Score",  value: `${(result.risk_score * 100).toFixed(1)}%` },
-              { label: "Uncertainty", value: result.uncertainty_level },
-            ].map(({ label, value }) => (
+            {([
+              {
+                label:    "Risk Score",
+                sub:      "Acetowhite likelihood",
+                value:    `${(result.risk_score  * 100).toFixed(1)}%`,
+                color:    riskColour(result.risk_level),
+              },
+              {
+                label:    "Confidence",
+                sub:      "AI decisiveness",
+                value:    `${(result.confidence  * 100).toFixed(1)}%`,
+                color:    result.confidence >= 0.5 ? "#10b981" : "#f59e0b",
+              },
+              {
+                label:    "Uncertainty",
+                sub:      "Human check needed",
+                value:    result.uncertainty_level,
+                color:    result.uncertainty_level === "High" ? "#f59e0b" : "#10b981",
+              },
+            ] as const).map(({ label, sub, value, color }) => (
               <View style={modal.metricBox} key={label}>
                 <Text style={modal.metricLabel}>{label}</Text>
-                <Text style={modal.metricValue}>{value}</Text>
+                <Text style={modal.metricSub}>{sub}</Text>
+                <Text style={[modal.metricValue, { color }]}>{value}</Text>
               </View>
             ))}
           </View>
@@ -74,11 +142,19 @@ function DetailModal({ result, onClose }: { result: LocalAnalysis | null; onClos
             <Image source={{ uri: result.imagePath }} style={modal.scanImage} resizeMode="cover" />
           </View>
 
-          {/* Recommendation */}
-          <View style={modal.section}>
-            <Text style={modal.sectionTitle}>Clinical Recommendation</Text>
-            <Text style={modal.sectionBody}>{result.recommendation}</Text>
-          </View>
+          {/* Clinical Interpretation */}
+          {(() => {
+            const interp = clinicalInterpretation(result);
+            return (
+              <View style={modal.section}>
+                <Text style={modal.sectionTitle}>Clinical Interpretation</Text>
+                <View style={[modal.interpCard, { borderLeftColor: interp.color }]}>
+                  <Text style={[modal.interpTitle, { color: interp.color }]}>{interp.title}</Text>
+                  <Text style={modal.sectionBody}>{interp.detail}</Text>
+                </View>
+              </View>
+            );
+          })()}
 
           {/* Centre ID */}
           <View style={modal.centreRow}>
@@ -264,11 +340,17 @@ const modal = StyleSheet.create({
     backgroundColor: "#f9fafb", borderRadius: 12, padding: 16, marginBottom: 20,
   },
   metricBox:    { alignItems: "center", flex: 1 },
-  metricLabel:  { fontSize: 11, color: "#9ca3af", marginBottom: 4 },
+  metricLabel:  { fontSize: 11, color: "#9ca3af", marginBottom: 2 },
+  metricSub:    { fontSize: 9, color: "#d1d5db", marginBottom: 4, textAlign: "center" },
   metricValue:  { fontSize: 16, fontWeight: "700", color: "#111827" },
   section:      { marginBottom: 20 },
   sectionTitle: { fontSize: 15, fontWeight: "700", color: "#111827", marginBottom: 8 },
   sectionBody:  { fontSize: 14, color: "#374151", lineHeight: 22 },
+  interpCard: {
+    borderLeftWidth: 4, borderRadius: 8,
+    backgroundColor: "#fafafa", paddingHorizontal: 14, paddingVertical: 12,
+  },
+  interpTitle:  { fontSize: 14, fontWeight: "700", marginBottom: 6 },
   scanImage:    { width: "100%", height: 240, borderRadius: 12, backgroundColor: "#f3f4f6" },
   centreRow: {
     flexDirection: "row", alignItems: "center", gap: 4,
