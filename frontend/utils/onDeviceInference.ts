@@ -155,34 +155,42 @@ function softmax(logits: Float32Array): [number, number] {
 function buildResult(fusedPositiveProb: number): OnDeviceResult {
   const prob       = fusedPositiveProb;
   const prediction = prob > INFERENCE_THRESHOLD ? "Positive" : "Negative";
-  const confidence = Math.min(Math.max(
-    prediction === "Positive" ? prob : 1 - prob,
-    0.01
-  ), 0.95);
-  const uncertainty_score = 1 - 2 * Math.abs(prob - 0.5);
-  const uncertainty_level = uncertainty_score > 0.4 ? "High" : "Low";
 
+  // risk_score = raw positive-class probability = clinical likelihood of disease
+  const risk_score = prob;
+
+  // confidence = how far the model's probability is from the 50/50 boundary.
+  // Ranges 0–1: 0 = completely undecided, 1 = maximally certain.
+  // This is INDEPENDENT of risk_score — a high-risk result can still be uncertain.
+  const confidence = Math.min(2 * Math.abs(prob - 0.5), 0.99);
+
+  // uncertainty is the complement of confidence
+  const uncertainty_score  = 1 - confidence;
+  const uncertainty_level: "High" | "Low" = confidence < 0.5 ? "High" : "Low";
+
+  // risk_level driven entirely by risk_score (probability of acetowhite finding)
+  // Three clinical tiers aligned with WHO/VIA screening practice:
+  //   High Risk   ≥ 0.65  — clear acetowhite changes, specialist referral
+  //   Moderate Risk 0.30–0.65 — borderline / equivocal findings, clinical review
+  //   Low Risk    < 0.30  — no significant acetowhite changes seen
   let risk_level: string;
   let recommendation: string;
 
-  if (prediction === "Positive") {
-    risk_level = confidence >= 0.8 && uncertainty_level === "Low"
-      ? "High Risk"
-      : confidence >= 0.6 ? "Moderate Risk" : "Uncertain Risk";
-    recommendation = confidence >= 0.8
-      ? "Immediate review by a qualified specialist is strongly recommended."
-      : "Consult a healthcare professional — further evaluation recommended.";
+  if (risk_score >= 0.65) {
+    risk_level = "High Risk";
+    recommendation = "Immediate review by a qualified specialist is strongly recommended.";
+  } else if (risk_score >= INFERENCE_THRESHOLD) {
+    risk_level = "Moderate Risk";
+    recommendation = "Consult a healthcare professional — further evaluation is recommended.";
   } else {
-    risk_level = confidence >= 0.8 && uncertainty_level === "Low"
-      ? "Low Risk" : "Moderate Risk";
-    recommendation =
-      "Continue routine screening as per standard clinical guidelines.";
+    risk_level = "Low Risk";
+    recommendation = "Continue routine screening as per standard clinical guidelines.";
   }
 
   return {
     prediction,
     confidence,
-    risk_score:       prob,
+    risk_score,
     uncertainty_score,
     uncertainty_level,
     risk_level,
