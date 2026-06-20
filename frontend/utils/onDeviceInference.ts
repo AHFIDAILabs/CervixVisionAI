@@ -203,7 +203,15 @@ export async function runOnDeviceInference(imageUri: string): Promise<OnDeviceRe
   await loadSessions();
   const { Tensor } = getOnnx();
 
+  // DIAG A — confirm actual model I/O names (needed every run, not just first load)
+  ort(`DIAG-A swin  in=${JSON.stringify(swintSession!.inputNames)} out=${JSON.stringify(swintSession!.outputNames)}`);
+  ort(`DIAG-A effnt in=${JSON.stringify(efficientnetSession!.inputNames)} out=${JSON.stringify(efficientnetSession!.outputNames)}`);
+
   const inputData = await preprocessImage(imageUri);
+
+  // DIAG B — sample 3 spread-out pixel values; should DIFFER between images
+  ort(`DIAG-B tensor[0]=${inputData[0].toFixed(4)} [10000]=${inputData[10000].toFixed(4)} [100000]=${inputData[100000].toFixed(4)}`);
+
   const inputTensor: TensorType = new Tensor("float32", inputData, [1, 3, 224, 224]);
   const feeds = { image: inputTensor };
 
@@ -212,11 +220,24 @@ export async function runOnDeviceInference(imageUri: string): Promise<OnDeviceRe
     efficientnetSession!.run(feeds),
   ]);
 
-  const [, swintPos]        = softmax(swintOutput["logits"].data as Float32Array);
-  const [, efficientnetPos] = softmax(efficientnetOutput["logits"].data as Float32Array);
+  // DIAG C — raw logits before softmax; should DIFFER between images if models respond to input
+  const swintRaw = swintOutput["logits"]?.data as Float32Array | undefined;
+  const effRaw   = efficientnetOutput["logits"]?.data as Float32Array | undefined;
+  ort(`DIAG-C swin logits=${swintRaw ? `[${swintRaw[0].toFixed(4)},${swintRaw[1].toFixed(4)}]` : "KEY MISSING"}`);
+  ort(`DIAG-C effnt logits=${effRaw   ? `[${effRaw[0].toFixed(4)},${effRaw[1].toFixed(4)}]`   : "KEY MISSING"}`);
+
+  if (!swintRaw || !effRaw) {
+    const outKeys = `swin=${JSON.stringify(Object.keys(swintOutput))} effnt=${JSON.stringify(Object.keys(efficientnetOutput))}`;
+    throw new Error(`Output key "logits" not found. Actual keys: ${outKeys}`);
+  }
+
+  const [, swintPos]        = softmax(swintRaw);
+  const [, efficientnetPos] = softmax(effRaw);
 
   const fusedPositiveProb =
     PRIMARY_WEIGHT * swintPos + SECONDARY_WEIGHT * efficientnetPos;
+
+  ort(`DIAG-D fused=${fusedPositiveProb.toFixed(4)} swinPos=${swintPos.toFixed(4)} effntPos=${efficientnetPos.toFixed(4)}`);
 
   return buildResult(fusedPositiveProb);
 }
