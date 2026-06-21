@@ -59,3 +59,4 @@ htmlcov/
 *.log
 combined.log
 error.log
+VALIDATION_PROPOSAL.md
