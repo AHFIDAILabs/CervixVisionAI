@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import DashboardLayout from "./DashboardLayout";
 import BottomNavigationBar from "../../Components/BottomBar";
@@ -29,7 +29,9 @@ export default function DashboardScreen() {
     }
   }, [centre]);
 
-  useEffect(() => { refreshSummary(); }, [refreshSummary]);
+  // useFocusEffect re-runs every time this screen comes into focus (e.g. after
+  // navigating back from ScanScreen), keeping the summary panels up to date.
+  useFocusEffect(refreshSummary);
 
   return (
     <DashboardLayout>
@@ -78,7 +80,7 @@ export default function DashboardScreen() {
             <Text style={styles.cardText}>All Results</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.card} onPress={() => navigation.navigate("ResultsScreen")}>
+          <TouchableOpacity style={styles.card} onPress={() => navigation.navigate("StatisticsScreen")}>
             <MaterialIcons name="bar-chart" size={32} color="#16a34a" />
             <Text style={styles.cardText}>Statistics</Text>
           </TouchableOpacity>

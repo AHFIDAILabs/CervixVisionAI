@@ -67,6 +67,63 @@ documented end-to-end in [DEPLOYMENT.md](DEPLOYMENT.md), including the model
 training/export workflow, server requirements, SSL certificate bootstrap, and
 the production compose overrides in `docker-compose.prod.yml`.
 
+## Understanding AI results
+
+Every scan produces three metrics and a clinical interpretation title.
+
+### Risk Score
+
+The raw positive-class probability output by the ensemble (0–100%).  
+It answers the clinical question: **"How likely does this image show acetowhite changes?"**
+
+| Range | Meaning |
+|---|---|
+| ≥ 65% | Clear acetowhite features — High Risk |
+| 30–64% | Equivocal features — Moderate Risk |
+| < 30% | No significant acetowhite features — Low Risk |
+
+### Confidence
+
+A measure of AI decisiveness — how far the model's probability is from a 50/50 tie:
+
+```
+Confidence = 2 × |Risk Score − 50%|
+```
+
+- **0%** — completely undecided (the model sees equal evidence on both sides)
+- **100%** — maximally certain (the model is at the far end of its probability range)
+
+Confidence is **independent** of Risk Score. A 70% risk score image can still have low confidence if the model's features are ambiguous. Confidence ≥ 30% → Uncertainty "Low"; Confidence < 30% → Uncertainty "High".
+
+### Uncertainty
+
+The complement of Confidence (100% − Confidence). When Uncertainty is **High**, the finding is near the model's detection boundary and a clinician should review the image regardless of the risk level.
+
+### Clinical Interpretation
+
+The app combines Risk Score and Confidence to select one of six range-based titles:
+
+| Risk Score | Uncertainty | Title shown |
+|---|---|---|
+| ≥ 65% | Low | High Risk — Refer Urgently |
+| ≥ 65% | High | High Risk — Specialist Review Required |
+| 50–65% | any | Moderate Risk — Clinical Review Needed |
+| 30–50% | any | Borderline Positive — Human Review Essential |
+| < 30% (Negative) | Low | Likely Clear — Routine Follow-up |
+| < 30% (Negative) | High | Borderline Negative — Follow-up Advised |
+
+### Exporting results
+
+Results are stored locally in a SQLite database on the device. Current export options:
+
+1. **On-screen report** — tap any result card in *All Results* to open the full report modal.
+2. **Screenshot / screen record** — use Android's native screenshot for ad-hoc documentation.
+3. **Structured export (planned)** — CSV/PDF export to shareable files is on the development roadmap.
+
+When internet connectivity is available, results will sync automatically to the backend (MongoDB) where they can be accessed via the admin interface.
+
+---
+
 ## License
 
 See [ai_engine/LICENSE](ai_engine/LICENSE).

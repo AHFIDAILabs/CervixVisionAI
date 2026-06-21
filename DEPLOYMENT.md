@@ -423,7 +423,63 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
 ---
 
-## 9. Troubleshooting
+## 9. Understanding AI results (for clinicians and deployers)
+
+### Risk Score
+
+Raw positive-class probability from the Swin + EfficientNet-B3 ensemble (0–100%).  
+Directly answers: **"How likely does this image contain acetowhite changes?"**
+
+- ≥ 65% → High Risk (specialist referral)
+- 30–64% → Moderate Risk (clinical review)
+- < 30% → Low Risk (routine follow-up)
+
+### Confidence
+
+How far the model's probability is from a 50/50 tie: `2 × |Risk Score − 50%|`
+
+- 0% = completely undecided; 100% = maximally certain
+- Independent of Risk Score — a high-risk result can still be uncertain
+- Confidence < 30% triggers "High" Uncertainty flag
+
+### Uncertainty
+
+Complement of Confidence (100% − Confidence). "High" uncertainty means the image is near the model's detection boundary; a clinician must review before acting on the result.
+
+### Clinical Interpretation titles
+
+| Risk Score | Uncertainty | Title |
+|---|---|---|
+| ≥ 65% | Low | High Risk — Refer Urgently |
+| ≥ 65% | High | High Risk — Specialist Review Required |
+| 50–65% | any | Moderate Risk — Clinical Review Needed |
+| 30–50% | any | Borderline Positive — Human Review Essential |
+| < 30% (Negative) | Low | Likely Clear — Routine Follow-up |
+| < 30% (Negative) | High | Borderline Negative — Follow-up Advised |
+
+### AI Explainability (Grad-CAM)
+
+The server-side inference pipeline (`ai_engine`) generates a Grad-CAM heatmap overlay
+for every analysis and returns it as a base64 JPEG in the `xai_output` field. This
+highlights the image regions that drove the prediction.
+
+On-device (offline) inference does **not** produce a heatmap — ONNX Runtime does not
+expose gradient computation at runtime. The heatmap section is shown in the result
+modal with an informational note when the source is on-device.
+
+### Exporting results
+
+| Method | How |
+|---|---|
+| On-screen report | Tap any card in *All Results* to open the full report modal |
+| Screenshot | Use Android native screenshot for quick documentation |
+| Statistics summary | Use the *Statistics* quick action on the dashboard for session-level aggregates |
+| Server-side export (admin) | Results synced to MongoDB are accessible via the backend API or MongoDB Compass |
+| Structured CSV/PDF (planned) | On the roadmap for a future release |
+
+---
+
+## 10. Troubleshooting
 
 | Symptom | Cause | Fix |
 |---|---|---|

@@ -166,7 +166,10 @@ function buildResult(fusedPositiveProb: number): OnDeviceResult {
 
   // uncertainty is the complement of confidence
   const uncertainty_score  = 1 - confidence;
-  const uncertainty_level: "High" | "Low" = confidence < 0.5 ? "High" : "Low";
+  // Threshold 0.30: flags as uncertain only when model is less than 65% decisive
+  // (prob between 0.35–0.65). High Risk cases (prob >= 0.65) always land at
+  // confidence >= 0.30 → "Low", so they no longer trigger "human review" warnings.
+  const uncertainty_level: "High" | "Low" = confidence < 0.30 ? "High" : "Low";
 
   // risk_level driven entirely by risk_score (probability of acetowhite finding)
   // Three clinical tiers aligned with WHO/VIA screening practice:
